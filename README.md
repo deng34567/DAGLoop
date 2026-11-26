@@ -172,6 +172,22 @@ Resuming a session preserves its recorded attempts and results.
 
 [DAGLoop on arXiv](https://arxiv.org/abs/2610.25089)
 
+## Citation
+
+If you find DAGLoop useful in your research, please consider citing our paper:
+
+```bibtex
+@misc{wang2026dagloopaligningmethoddesign,
+      title={DAGLoop: Aligning Method Design with Experimental Feedback in Automated AI Research}, 
+      author={Dengyuxing Wang and Yonggang Zhang and Qianshu Cai and Huajiang Zheng and Jun Song and Yangqiu Song and Yike Guo},
+      year={2026},
+      eprint={2610.25089},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2610.25089}, 
+}
+```
+
 ## License
 
 The DAGLoop implementation is available under the [MIT License](LICENSE). Third-party
