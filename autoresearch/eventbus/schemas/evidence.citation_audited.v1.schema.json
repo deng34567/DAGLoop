@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/evidence.citation_audited.v1.schema.json",
+  "title": "evidence.citation_audited (v1)",
+  "description": "EvidenceAuditAgent has finished auditing the consolidated ResearchMemory for claims lacking citation support and frozen a CitationAuditReport into the Research Store (see agents/evidence_audit_agent/data-contracts/citation_audit_report.schema.yaml). Payload is intentionally minimal: the report is read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "citation_audit_report_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "citation_audit_report_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen CitationAuditReport object."
+    }
+  }
+}

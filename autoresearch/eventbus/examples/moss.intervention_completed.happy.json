@@ -1,0 +1,6 @@
+{
+  "reason": "loop detected: CoderAgent repeated the same failing patch 3 times",
+  "action": "inject_prompt_patch",
+  "moss_intervention_ref": "moss_intervention://sess-123/intervention-1",
+  "degraded": false
+}

@@ -1,0 +1,54 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/hypothesis_bank.schema.yaml"
+title: "HypothesisBank"
+description: >
+  Frozen artifact produced by HypothesisAgent (AutoResearch state machine
+  V1.10): a bank of candidate hypotheses derived from the frozen ResearchSpec
+  and LiteratureBrief. Stored as a blob in the Research Store
+  (kind="hypothesis_bank"); only its ref is carried in the hypothesis.generated
+  event payload. The schema allows an empty hypotheses array; the agent itself
+  is responsible for ensuring at least one hypothesis before freezing.
+"$defs":
+  Hypothesis:
+    type: object
+    required:
+      - id
+      - statement
+      - kind
+      - verifiable
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        description: "Stable identifier for the hypothesis within the bank."
+      statement:
+        type: string
+        description: "The hypothesis itself, stated as a testable claim."
+      rationale:
+        type: string
+        description: "Why this hypothesis is plausible, grounded in the ResearchSpec/LiteratureBrief."
+      kind:
+        type: string
+        enum:
+          - code_optimization
+          - training
+          - kernel
+          - idea
+          - intervention
+        description: "Category of hypothesis, driving which downstream agent/experiment type handles it."
+      verifiable:
+        type: boolean
+        description: "Whether this hypothesis can be tested via a concrete experiment."
+      expected_effect:
+        type: string
+        description: "The effect expected if the hypothesis holds (e.g. a metric improvement)."
+type: object
+required:
+  - hypotheses
+additionalProperties: false
+properties:
+  hypotheses:
+    type: array
+    items:
+      "$ref": "#/$defs/Hypothesis"
+    description: "Candidate hypotheses. May be empty at the schema level; the agent ensures at least one before freezing."

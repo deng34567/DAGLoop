@@ -1,0 +1,14 @@
+{
+  "query": "retrieval-augmented generation",
+  "entries": [
+    {
+      "path_or_ref": "literature_brief://sess-123/final",
+      "type": "literature_brief",
+      "summary": "Retrieval-augmented generation literature landscape.",
+      "tags": ["rag", "literature"],
+      "source": "DeepResearchAgent",
+      "produced_by_state": "DeepResearching"
+    }
+  ],
+  "hit_count": 1
+}

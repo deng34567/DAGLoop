@@ -1,0 +1,13 @@
+{
+  "items": [
+    {
+      "path_or_ref": "literature_brief://sess-123/final",
+      "summary": "Retrieval-augmented generation literature landscape.",
+      "tags": ["rag", "literature"]
+    },
+    {
+      "path_or_ref": "evidence://sess-123/e1",
+      "summary": "Failed acceptance run diagnostic."
+    }
+  ]
+}

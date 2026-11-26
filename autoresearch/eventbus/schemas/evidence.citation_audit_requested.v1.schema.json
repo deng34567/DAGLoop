@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/evidence.citation_audit_requested.v1.schema.json",
+  "title": "evidence.citation_audit_requested (v1)",
+  "description": "ResearchOrchestrator instructs EvidenceAuditAgent to audit the consolidated ResearchMemory for claims lacking citation support. Payload is intentionally minimal: the ResearchMemory and ResearchSpec are read from the Research Store by ref rather than from this payload. EvidenceAuditAgent itself is out of scope for this task -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "research_memory_ref",
+    "research_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "research_memory_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchMemory object."
+    },
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen (possibly revised) ResearchSpec object."
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/direction.critique_requested.v1.schema.json",
+  "title": "direction.critique_requested (v1)",
+  "description": "Entry action of the CritiquingDirection state (state machine V1.10 §1): ResearchOrchestrator instructs CriticAgent to critique the frozen ProblemModel against the frozen ResearchSpec. CriticAgent itself is out of scope for this task (M6) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "problem_model_ref",
+    "research_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "problem_model_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ProblemModel object."
+    },
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchSpec object."
+    }
+  }
+}

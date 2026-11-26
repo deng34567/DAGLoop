@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/experiment.run_requested.v1.schema.json",
+  "title": "experiment.run_requested (v1)",
+  "description": "ResearchOrchestrator instructs RunnerAgent to run the frozen ExperimentPatch under the frozen VerifierSpec's protocol (RunningExperiment state, state machine V1.10). RunnerAgent's RunningExperiment mode is M11 -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "experiment_patch_ref",
+    "verifier_spec_ref",
+    "benchmark_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "experiment_patch_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the frozen ExperimentPatch object to be run."
+    },
+    "verifier_spec_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the frozen VerifierSpec object whose protocol governs the run."
+    },
+    "benchmark_spec_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref to the BenchmarkSpec whose evaluation semantics guide this run."
+    },
+    "baseline_result_ref": {
+      "type": ["string", "null"]
+    },
+    "method_ref": {
+      "type": ["string", "null"],
+      "description": "Concrete confirmed Method ref whose execution feedback this run may update."
+    },
+    "confirmed_repo_url": {
+      "type": ["string", "null"]
+    },
+    "confirmed_boundary": {
+      "type": ["object", "null"]
+    },
+    "spec_interpretation_ref": {
+      "type": ["string", "null"],
+      "description": "Optional SpecInterpretation carrying a survey validation study."
+    },
+    "recover_completed_result": {
+      "type": "boolean",
+      "description": "True only for explicit process-restart redrive; permits recovery behind the durable remote session lock."
+    }
+  }
+}

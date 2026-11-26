@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/report.ready.v1.schema.json",
+  "title": "report.ready (v1)",
+  "description": "ReportAgent has finished composing the final honest Report and frozen it into the Research Store (see agents/report_agent/data-contracts/report.schema.yaml). ReportAgent's Report-writing mode is M14 -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "report_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "report_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen Report object."
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/memory.consolidated.v1.schema.json",
+  "title": "memory.consolidated (v1)",
+  "description": "MemoryAgent has finished consolidating the ResearchMemory and frozen it into the Research Store (see agents/memory_agent/data-contracts/research_memory.schema.yaml), along with its routing verdict for what ResearchOrchestrator should do next. MemoryAgent's ConsolidatingMemory mode is M13 -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "research_memory_ref",
+    "routing_verdict"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "research_memory_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchMemory object."
+    },
+    "routing_verdict": {
+      "type": "string",
+      "enum": ["continue_explore", "report", "need_experiment"],
+      "description": "MemoryAgent's routing verdict for ResearchOrchestrator's next state transition."
+    },
+    "diagnosis": {
+      "type": "string",
+      "enum": [
+        "execution_failure",
+        "setting_issue",
+        "component_expectation_failed",
+        "component_execution_blocked",
+        "component_accepted",
+        "component_progress",
+        "component_contract_retry",
+        "component_combination_retry",
+        "method_hypothesis_falsified",
+        "method_description_reconciliation",
+        "baseline_drift",
+        "valid_improvement",
+        "method_improvement_proposed",
+        "candidate_contract_violation",
+        "attempt_accounting_violation",
+        "literature_novelty_exhausted",
+        "baseline_reproduction_failed",
+        "inconclusive"
+      ]
+    },
+    "diagnosis_evidence": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  }
+}

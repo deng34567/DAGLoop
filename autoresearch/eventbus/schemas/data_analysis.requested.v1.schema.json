@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/data_analysis.requested.v1.schema.json",
+  "title": "data_analysis.requested (v1)",
+  "description": "ResearchOrchestrator instructs DataAnalysisAgent to analyze an uploaded external dataset against the frozen external experiment package, at a given strictness level. DataAnalysisAgent itself is out of scope for this task -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "external_data_upload_ref",
+    "external_experiment_package_ref",
+    "strictness"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "external_data_upload_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the uploaded external dataset."
+    },
+    "external_experiment_package_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen external experiment package the data is being analyzed against."
+    },
+    "strictness": {
+      "type": "integer",
+      "description": "Strictness level DataAnalysisAgent should apply when assessing QC / consensus."
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/baseline.reproduction_requested.v1.schema.json",
+  "title": "baseline.reproduction_requested (v1)",
+  "description": "ResearchOrchestrator instructs RunnerAgent to reproduce the baseline of the frozen BenchmarkSpec under the frozen VerifierSpec's protocol. RunnerAgent itself is out of scope for this task (M10) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "benchmark_spec_ref",
+    "verifier_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {
+      "type": "string",
+      "description": "Persisted MOSS revalidation decision, including diagnosis for the baseline executor."
+    },
+    "recover_completed_result": {
+      "type": "boolean",
+      "description": "Restart recovery only; an explicit MOSS revalidation request requires a fresh run instead."
+    },
+    "benchmark_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen BenchmarkSpec object whose baseline is to be reproduced."
+    },
+    "verifier_spec_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the frozen VerifierSpec object whose protocol governs the reproduction run."
+    },
+    "confirmed_repo_url": {
+      "type": ["string", "null"]
+    },
+    "confirmed_boundary": {
+      "type": ["object", "null"]
+    }
+  }
+}

@@ -1,0 +1,67 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/external_data_analysis_report.schema.yaml"
+title: "ExternalDataAnalysisReport"
+description: >
+  Frozen artifact produced by DataAnalysisAgent: a QC summary plus per-trajectory
+  conclusions over an uploaded external dataset, aggregated into a consensus
+  conclusion/status, any divergence points, an overall robustness verdict, and
+  whether a human review is needed. Stored as a blob in the Research Store
+  (kind="external_data_analysis_report"); only its ref is carried in the
+  data_analysis.ready event payload.
+type: object
+required:
+  - qc_summary
+  - trajectories
+  - consensus_conclusion
+  - consensus_status
+  - divergence_points
+  - robustness
+  - need_human_review
+additionalProperties: false
+properties:
+  qc_summary:
+    type: string
+    description: "Free-form summary of the quality-control checks performed on the uploaded dataset."
+  trajectories:
+    type: array
+    items:
+      type: object
+      required:
+        - trajectory_id
+        - conclusion
+      additionalProperties: false
+      properties:
+        trajectory_id:
+          type: string
+          description: "Id of the analysis trajectory."
+        conclusion:
+          type: string
+          description: "This trajectory's conclusion."
+        notes:
+          type: ["string", "null"]
+          description: "Optional free-form notes for this trajectory, or null if none."
+    description: "Per-trajectory analysis conclusions DataAnalysisAgent produced over the uploaded dataset."
+  consensus_conclusion:
+    type: string
+    description: "Overall conclusion aggregated across the trajectories."
+  consensus_status:
+    type: string
+    enum:
+      - converged
+      - diverged
+    description: "Whether the trajectories converged on the consensus conclusion or diverged."
+  divergence_points:
+    type: array
+    items:
+      type: string
+    description: "Free-form descriptions of where the trajectories diverged, if any."
+  robustness:
+    type: string
+    enum:
+      - high
+      - moderate
+      - low
+    description: "Overall robustness verdict for the consensus conclusion."
+  need_human_review:
+    type: boolean
+    description: "Whether this report requires a human review before proceeding."

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/ranking.ready.v1.schema.json",
+  "title": "ranking.ready (v1)",
+  "description": "RankingJudgeAgent has finished ranking candidates and frozen a RankingReport into the Research Store (see agents/ranking_judge_agent/data-contracts/ranking_report.schema.yaml). Payload is intentionally minimal: the report is read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "ranking_report_ref",
+    "candidate_kind"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "ranking_report_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen RankingReport object."
+    },
+    "candidate_kind": {
+      "type": "string",
+      "enum": [
+        "hypothesis"
+      ],
+      "description": "Kind of candidate that was ranked. Only 'hypothesis' is supported for now; 'benchmark' is deferred."
+    }
+  }
+}

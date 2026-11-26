@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/problem_modeling.requested.v1.schema.json",
+  "title": "problem_modeling.requested (v1)",
+  "description": "ResearchOrchestrator instructs ProblemModelingAgent to begin (or continue) the goal-clarification dialogue with the user. Emitted as the entry action of the ClarifyingResearchGoal state (state machine V1.10): ProblemModelingAgent confirms topic, research goal, task mode, budget, deliverable form, allowed modification scope, and forbidden items with the user, writing the resulting ResearchSpec into the Research Store. Payload is intentionally minimal: ProblemModelingAgent reads any existing session state (prior ResearchSpec draft, conversation history) from the Research Store by session_id rather than from this payload.",
+  "type": "object",
+  "required": [
+    "research_goal_text"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "research_goal_text": {
+      "type": "string",
+      "description": "The user's initial research goal / topic description that seeds the session."
+    }
+  }
+}

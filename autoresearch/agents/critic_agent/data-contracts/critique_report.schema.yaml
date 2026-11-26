@@ -1,0 +1,42 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/critique_report.schema.yaml"
+title: "CritiqueReport"
+description: >
+  Frozen artifact produced by CriticAgent: having read the frozen ResearchSpec
+  plus either the frozen ProblemModel (CritiquingDirection) or the frozen
+  HypothesisBank, CriticAgent judges whether the target passes critique.
+  Stored as a blob in the Research Store (kind="critique_report"); only its
+  ref is carried in the direction.critiqued / hypothesis.critiqued event
+  payloads.
+type: object
+required:
+  - target
+  - verdict
+  - issues
+additionalProperties: false
+properties:
+  target:
+    type: string
+    enum:
+      - direction
+      - hypotheses
+      - experiment_plan
+    description: "What CriticAgent critiqued: the ProblemModel/ResearchSpec pairing (direction), the HypothesisBank (hypotheses), or the ExperimentPlan (experiment_plan)."
+  verdict:
+    type: string
+    enum:
+      - pass
+      - fail
+      - some_pass
+      - all_rejected
+    description: "CriticAgent's verdict. For target=direction: pass or fail. For target=hypotheses: some_pass or all_rejected."
+  issues:
+    type: array
+    items:
+      type: string
+    description: "Issues CriticAgent found. Empty if verdict is pass (target=direction)."
+  passing_hypothesis_ids:
+    type: array
+    items:
+      type: string
+    description: "IDs of hypotheses that survived critique. Only meaningful for target=hypotheses; empty for target=direction or when verdict is all_rejected."

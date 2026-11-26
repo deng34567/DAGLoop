@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/literature.brief_ready.v1.schema.json",
+  "title": "literature.brief_ready (v1)",
+  "description": "DeepResearchAgent has finished the two-pass literature search and frozen a LiteratureBrief + FieldTrajectoryBrief into the Research Store. ResearchOrchestrator uses this to transition DeepResearching -> ReinterpretingSpec (state machine V1.10 §1). Payload is intentionally minimal: the briefs themselves (see agents/deep_research_agent/data-contracts/{literature_brief,field_trajectory_brief}.schema.yaml) are read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "literature_brief_ref",
+    "field_trajectory_brief_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "literature_brief_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen LiteratureBrief object."
+    },
+    "field_trajectory_brief_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen FieldTrajectoryBrief object."
+    },
+    "method_ref": {
+      "type": "string"
+    },
+    "novelty_audit_report_ref": {
+      "type": "string"
+    },
+    "targeted_search_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    }
+  },
+  "dependentRequired": {
+    "targeted_search_id": ["method_ref"]
+  }
+}

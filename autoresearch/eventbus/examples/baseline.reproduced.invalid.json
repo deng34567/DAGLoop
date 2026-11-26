@@ -1,0 +1,5 @@
+{
+  "verdict": "definitely_reproduced",
+  "baseline_result_ref": "baseline_result://sess-123/bench-42",
+  "benchmark_id": "bench-42"
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/method.deliberation_requested.v1.schema.json",
+  "title": "method.deliberation_requested (v1)",
+  "type": "object",
+  "required": ["method_ref"],
+  "additionalProperties": false,
+  "properties": {
+    "problem_model_ref": {"type": ["string", "null"]},
+    "literature_brief_ref": {"type": ["string", "null"]},
+    "human_idea_seed_ref": {"type": ["string", "null"]},
+    "method_ref": {"type": "string"},
+    "baseline_result_ref": {"type": ["string", "null"]},
+    "spec_interpretation_ref": {"type": ["string", "null"]},
+    "method_feedback_ref": {"type": ["string", "null"]},
+    "component_plan_audit": {"type": "boolean"},
+    "component_plan_allow_unchanged": {"type": "boolean"},
+    "component_plan_checkpoint_ref": {"type": ["string", "null"]},
+    "component_plan_revision_feedback": {"type": ["string", "null"]},
+    "component_plan_failure": {"type": ["object", "null"]},
+    "component_plan_failed_component": {"type": ["string", "null"]},
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "research_memory_ref": {"type": ["string", "null"]}
+  }
+}

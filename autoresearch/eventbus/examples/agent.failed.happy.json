@@ -1,0 +1,6 @@
+{
+  "agent_name": "CoderAgent",
+  "reason_classification": "policy_violation",
+  "underlying_reason": "Attempted to emit report.generation_requested without authorization",
+  "violation_type": "unauthorized_emit"
+}

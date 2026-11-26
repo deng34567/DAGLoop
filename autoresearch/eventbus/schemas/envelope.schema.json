@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/envelope.v1.schema.json",
+  "title": "EventBus Envelope (v1)",
+  "description": "Every event published to the AutoResearch EventBus carries this envelope. The envelope is REQUIRED on every event; the payload structure is event_type-specific.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "session_id",
+    "event_type",
+    "emitter",
+    "timestamp",
+    "schema_version",
+    "cost_delta",
+    "payload"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID v4. Used for idempotency: same event_id received twice MUST be processed exactly once."
+    },
+    "session_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID v4 of the session this event belongs to. Determines the Redis stream key: events:{session_id}."
+    },
+    "event_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "Dot-separated event name, e.g. 'coder.module_implemented'. Used to look up schema + emitter whitelist."
+    },
+    "emitter": {
+      "type": "string",
+      "enum": [
+        "system",
+        "ResearchOrchestrator",
+        "ProblemModelingAgent",
+        "DeepResearchAgent",
+        "KnowledgeIndexAgent",
+        "NoveltyAuditAgent",
+        "HypothesisAgent",
+        "CriticAgent",
+        "EvaluatorAgent",
+        "ExperimentPlannerAgent",
+        "CoderAgent",
+        "RunnerAgent",
+        "ReportAgent",
+        "MOSS",
+        "MemoryAgent",
+        "EvidenceAuditAgent",
+        "RankingJudgeAgent",
+        "DataAnalysisAgent",
+        "Human"
+      ],
+      "description": "Identity of the publishing process. The 'system' emitter is reserved for broker-library-synthesized events (e.g. policy_violation agent.failed). 'ResearchOrchestrator' is the engine state machine; the remaining names are the AutoResearch pipeline agents plus 'MOSS' (cross-cutting oversight)."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp when the event was created."
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Version of the payload schema. Allows the broker to choose the right schema when validating."
+    },
+    "cost_delta": {
+      "type": "string",
+      "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$",
+      "description": "USD cost contributed by this event, decimal with up to 6 fractional digits. Stored as string to avoid float precision loss. Events without LLM cost set this to '0'."
+    },
+    "causation_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "Optional. The event_id of the event that directly caused this one. Enables event-chain tracing for debugging."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Event-type-specific payload. Validated against the corresponding payload schema (e.g. coder.module_implemented.v1.schema.json)."
+    }
+  }
+}

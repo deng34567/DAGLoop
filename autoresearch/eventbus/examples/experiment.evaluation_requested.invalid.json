@@ -1,0 +1,4 @@
+{
+  "run_record_ref": "run_record://sess-123/exp-1",
+  "verifier_spec_ref": "verifier_spec://sess-123/final"
+}

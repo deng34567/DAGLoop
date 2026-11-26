@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/method.revise_requested.v1.schema.json",
+  "title": "method.revise_requested (v1)",
+  "type": "object",
+  "required": ["problem_model_ref", "method_ref", "experiment_feedback"],
+  "additionalProperties": false,
+  "properties": {
+    "problem_model_ref": {"type": "string"},
+    "literature_brief_ref": {"type": ["string", "null"]},
+    "method_ref": {"type": "string"},
+    "baseline_result_ref": {"type": ["string", "null"]},
+    "spec_interpretation_ref": {"type": ["string", "null"]},
+    "research_memory_ref": {"type": ["string", "null"]},
+    "incremental_revision": {"type": "boolean"},
+    "component_plan_checkpoint_ref": {"type": ["string", "null"]},
+    "experiment_feedback": {"type": "string"}
+  }
+}

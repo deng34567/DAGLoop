@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/experiment.review_requested.v1.schema.json",
+  "title": "experiment.review_requested (v1)",
+  "description": "ResearchOrchestrator instructs CriticAgent to review the frozen ExperimentPlan against the frozen VerifierSpec. CriticAgent itself is out of scope for this task (M8) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "experiment_plan_ref",
+    "verifier_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "method_ref": {
+      "type": ["string", "null"],
+      "description": "Optional confirmed Method ref, including frozen component acceptance contracts."
+    },
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "research_memory_ref": {"type": ["string", "null"]},
+    "experiment_plan_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ExperimentPlan object."
+    },
+    "verifier_spec_ref": {
+      "type": ["string", "null"],
+      "description": "Optional frozen VerifierSpec ref; null on the current post-baseline verifier route."
+    },
+    "benchmark_spec_ref": {
+      "type": ["string", "null"],
+      "description": "Optional frozen BenchmarkSpec ref supplying the authoritative metric, comparison semantics and budget when no VerifierSpec was predeclared."
+    },
+    "baseline_result_ref": {
+      "type": ["string", "null"],
+      "description": "Optional frozen BaselineResult used to review factual baseline assumptions in the plan."
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/human.clarification_answer.v1.schema.json",
+  "title": "human.clarification_answer (v1)",
+  "description": "The human's answer to a problem_modeling.clarification_question, correlated by question_id. Emitted with envelope.emitter == 'Human'.",
+  "type": "object",
+  "required": [
+    "question_id",
+    "answer_text"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "question_id": {
+      "type": "string",
+      "description": "Must match the question_id of the problem_modeling.clarification_question being answered."
+    },
+    "answer_text": {
+      "type": "string",
+      "description": "The human's answer, either free text or the chosen option's text."
+    }
+  }
+}

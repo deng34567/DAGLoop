@@ -1,0 +1,7 @@
+{
+  "items": [
+    {
+      "summary": "Missing path_or_ref, should fail."
+    }
+  ]
+}

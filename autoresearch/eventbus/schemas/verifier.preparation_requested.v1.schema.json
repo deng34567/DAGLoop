@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/verifier.preparation_requested.v1.schema.json",
+  "title": "verifier.preparation_requested (v1)",
+  "description": "ResearchOrchestrator instructs EvaluatorAgent to prepare (verifier-first) a VerifierSpec for the frozen BenchmarkSpec and ResearchSpec. EvaluatorAgent itself is out of scope for this task (M7) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "benchmark_spec_ref",
+    "research_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "benchmark_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen BenchmarkSpec object."
+    },
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchSpec object."
+    }
+  }
+}

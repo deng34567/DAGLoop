@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/problem_modeling.reinterpret_requested.v1.schema.json",
+  "title": "problem_modeling.reinterpret_requested (v1)",
+  "description": "Entry action of the ReinterpretingSpec state (state machine V1.10): ResearchOrchestrator instructs ProblemModelingAgent to reinterpret the frozen ResearchSpec in light of the literature / field-trajectory research. Emitted immediately after DeepResearching -> ReinterpretingSpec on literature.brief_ready. Payload is intentionally minimal: the ResearchSpec and both briefs are read from the Research Store by ref rather than from this payload. No consumer is wired in M2 (ProblemModelingAgent's ReinterpretingSpec mode is deferred); the loop pauses here.",
+  "type": "object",
+  "required": [
+    "research_spec_ref",
+    "literature_brief_ref",
+    "field_trajectory_brief_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchSpec object."
+    },
+    "literature_brief_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen LiteratureBrief object."
+    },
+    "field_trajectory_brief_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen FieldTrajectoryBrief object."
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "external_data_upload_ref": "ref://external_data_upload/s1/v1",
+  "external_experiment_package_ref": "ref://external_experiment_package/s1/v1",
+  "strictness": 2
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/report.requested.v1.schema.json",
+  "title": "report.requested (v1)",
+  "description": "ResearchOrchestrator instructs ReportAgent to compose the final honest Report from the frozen ResearchMemory (and optionally the original ResearchSpec). ReportAgent's Report-writing mode is M14 -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "research_memory_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "research_memory_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchMemory object to report on."
+    },
+    "research_spec_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the original ResearchSpec, or null if not provided."
+    },
+    "citation_audit_report_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the CitationAuditReport (EvidenceAuditAgent Mode C), or null if not provided."
+    },
+    "literature_brief_ref": {
+      "type": ["string", "null"]
+    },
+    "method_ref": {
+      "type": ["string", "null"]
+    },
+    "evidence_audit_report_ref": {
+      "type": ["string", "null"]
+    },
+    "novelty_audit_report_ref": {
+      "type": ["string", "null"]
+    },
+    "result_ref": {
+      "type": ["string", "null"],
+      "description": "Frozen selected executable result, including a valid negative result."
+    }
+  }
+}

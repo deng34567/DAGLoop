@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/hypothesis.generation_requested.v1.schema.json",
+  "title": "hypothesis.generation_requested (v1)",
+  "description": "ResearchOrchestrator instructs HypothesisAgent to generate a HypothesisBank grounded in the frozen ResearchSpec and LiteratureBrief. Payload is intentionally minimal: both artifacts are read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "research_spec_ref",
+    "literature_brief_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchSpec object."
+    },
+    "literature_brief_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen LiteratureBrief object."
+    },
+    "research_memory_ref": {
+      "type": ["string", "null"],
+      "description": "Optional prior ResearchMemory used to avoid repeating earlier ideas."
+    }
+  }
+}

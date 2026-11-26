@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/deliberation.requested.v1.schema.json",
+  "title": "deliberation.requested (v1)",
+  "type": "object",
+  "required": ["research_spec_ref"],
+  "additionalProperties": false,
+  "properties": {
+    "research_spec_ref": {"type": "string"},
+    "literature_brief_ref": {"type": ["string", "null"]}
+  }
+}

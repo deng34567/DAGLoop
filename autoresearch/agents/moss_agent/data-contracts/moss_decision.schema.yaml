@@ -1,0 +1,75 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/moss_decision.schema.yaml"
+title: "MossDecision"
+description: >
+  Frozen artifact produced by MOSS when it intervenes on a stuck/looping
+  ResearchOrchestrator run. Stored as a blob in the Research Store
+  (kind="moss_intervention"); only its ref is carried in the
+  moss.intervention_completed event payload.
+
+  `action` is intentionally a free string here: the code-level ActionGuard
+  is the real enforcement of which actions are legal, so this schema does
+  NOT constrain it with an enum.
+
+  Because this schema sets additionalProperties: false, the nullable
+  optional field below (prompt_patch) is declared nullable: MOSS emits it
+  explicitly as null when it has no prompt patch to inject, rather than
+  omitting the key.
+type: object
+required:
+  - reason
+  - action
+  - degraded
+additionalProperties: false
+properties:
+  plan_diagnosis:
+    type: object
+    additionalProperties: false
+    required: [component_id, plan_quote]
+    properties:
+      component_id:
+        type: string
+      plan_quote:
+        type: string
+  method_ref:
+    type: string
+    description: "Current Method to which this recovery decision is bound."
+  diagnostic_ref:
+    type: ["string", "null"]
+    description: "Triggering diagnostic artifact; null for a preparation failure without an artifact."
+  reason:
+    type: string
+    description: "Why MOSS intervened (e.g. 'loop detected', 'budget exhausted')."
+  action:
+    type: string
+    description: "The action MOSS decided to take (free string; enforced at the code level by the ActionGuard, not by this schema)."
+  prompt_patch:
+    type: ["object", "null"]
+    additionalProperties: false
+    required:
+      - agent
+      - content
+    properties:
+      agent:
+        type: string
+        description: "Which agent's prompt this patch targets."
+      content:
+        type: string
+        description: "The patch content to inject into that agent's prompt."
+    description: "A prompt patch to inject into a specific agent, or null if MOSS's action does not involve a prompt patch."
+  rationale:
+    type: string
+    description: "Optional free-form explanation of MOSS's reasoning behind the decision."
+  degraded:
+    type: boolean
+    description: "Whether MOSS operated in a degraded mode (e.g. fallback heuristic instead of full LLM reasoning)."
+
+  scope:
+    type: object
+    additionalProperties: false
+    required: [session_id, method_fingerprint]
+    properties:
+      session_id:
+        type: string
+      method_fingerprint:
+        type: [string, "null"]

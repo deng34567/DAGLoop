@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VibeResearch — Admin</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background:#0f1117; color:#dbe1ea; }
+  header { padding:10px 16px; background:#161a23; border-bottom:1px solid #232838;
+           display:flex; align-items:center; gap:12px; }
+  header h1 { font-size:15px; margin:0; color:#9db4ff; flex:1; }
+  a.back { color:#9db4ff; font-size:13px; text-decoration:none; }
+  .wrap { max-width:640px; margin:24px auto; padding:0 16px; }
+  h2 { font-size:14px; color:#9fb0cf; margin:0 0 12px; }
+  .row { display:flex; align-items:center; gap:10px; padding:10px 12px;
+         background:#161a23; border:1px solid #232838; border-radius:8px; margin-bottom:8px; }
+  .row .u { flex:1; font-weight:600; }
+  .row .t { color:#7c869b; font-size:12px; }
+  button { border:0; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px; }
+  button.approve { background:#2f7a45; color:#fff; }
+  button.reject { background:#7a2f2f; color:#fff; }
+  .empty { color:#7c869b; font-size:13px; }
+  .msg { margin:10px 0; font-size:12.5px; min-height:16px; }
+  .msg.err { color:#ff8080; } .msg.ok { color:#7ee0a0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>VibeResearch — pending registrations</h1>
+  <a class="back" href="/">← back to viewer</a>
+</header>
+<div class="wrap">
+  <h2>Awaiting approval</h2>
+  <div class="msg" id="msg"></div>
+  <div id="list"><div class="empty">loading…</div></div>
+</div>
+
+<script>
+  function setMsg(t, cls) {
+    const el = document.getElementById("msg");
+    el.textContent = t; el.className = "msg" + (cls ? " " + cls : "");
+  }
+  async function load() {
+    const r = await fetch("/api/auth/admin/pending-users");
+    if (r.status === 401 || r.status === 403) { window.location.href = "/"; return; }
+    const users = await r.json().catch(() => []);
+    const list = document.getElementById("list");
+    if (!users.length) { list.innerHTML = '<div class="empty">No pending registrations.</div>'; return; }
+    list.innerHTML = "";
+    for (const u of users) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML =
+        '<span class="u"></span><span class="t"></span>' +
+        '<button class="approve">Approve</button><button class="reject">Reject</button>';
+      row.querySelector(".u").textContent = u.username;
+      row.querySelector(".t").textContent = u.created_at;
+      row.querySelector(".approve").onclick = () => act(u.username, "approve");
+      row.querySelector(".reject").onclick = () => act(u.username, "reject");
+      list.appendChild(row);
+    }
+  }
+  async function act(username, what) {
+    const r = await fetch(`/api/auth/admin/pending-users/${encodeURIComponent(username)}/${what}`,
+                          {method: "POST"});
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) { setMsg(data.detail || "action failed", "err"); return; }
+    setMsg(`${what === "approve" ? "Approved" : "Rejected"} ${username}.`, "ok");
+    load();
+  }
+  load();
+</script>
+</body>
+</html>

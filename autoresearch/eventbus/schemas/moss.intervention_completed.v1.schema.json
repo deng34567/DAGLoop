@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/moss.intervention_completed.v1.schema.json",
+  "title": "moss.intervention_completed (v1)",
+  "description": "MOSS has finished its intervention and frozen a MossDecision into the Research Store (see agents/moss_agent/data-contracts/moss_decision.schema.yaml). MOSS Step 1 -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "reason",
+    "action",
+    "moss_intervention_ref",
+    "degraded"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "reason": {
+      "type": "string",
+      "description": "Echo of (or MOSS's restatement of) why the intervention happened."
+    },
+    "action": {
+      "type": "string",
+      "description": "The action MOSS decided to take (free string; the code-level ActionGuard is the real enforcement, so this is intentionally not constrained by an enum)."
+    },
+    "moss_intervention_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen MossDecision object."
+    },
+    "degraded": {
+      "type": "boolean",
+      "description": "Whether MOSS operated in a degraded mode (e.g. fallback heuristic instead of full LLM reasoning)."
+    }
+  }
+}

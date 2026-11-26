@@ -1,0 +1,317 @@
+# AutoResearch AwaitingUserDecision 决策矩阵 (V1.10 §3)
+#
+# 每个 reason 下可选 actions 和对应后续状态。纯逻辑——怎么向用户呈现不在本 skill。
+# 每个 reason 都包含 abandon → Failed(全局规则 abandon_is_always_available)。
+#
+# 字段:
+#   triggered_in:  触发本 reason 转入 AwaitingUserDecision 的条件
+#   actions:       action / side_effects / next_state / guard(可选)
+#   next_state 中 "{...}" 是运行时模板(如 {previous_state} / {failed_state})。
+
+version: "v1.10"
+
+reasons:
+
+  # 1. human_checkpoint —— 用户主动要求审查
+  - reason: human_checkpoint
+    triggered_in:
+      - "用户主动要求审查(human.checkpoint_requested)"
+    actions:
+      - action: approve_continue
+        next_state: "{previous_state}"
+      - action: inject_idea
+        next_state: HumanIdeaCheckpoint
+      - action: modify_goal
+        next_state: ClarifyingResearchGoal
+      - action: change_track
+        next_state: RoutingResearchMode
+      - action: report_now
+        next_state: Reporting
+      - action: abandon
+        next_state: Failed
+
+  # 2. direction_thrashing —— A>=3 或 MOSS 判定方向反复有问题
+  - reason: direction_thrashing
+    triggered_in:
+      - "A >= 3 或 MOSS 判定方向反复有问题"
+    actions:
+      - action: modify_goal
+        side_effects: ["A reset to 0"]
+        next_state: ClarifyingResearchGoal
+      - action: inject_seed_idea
+        side_effects: ["A reset to 0"]
+        next_state: HumanIdeaCheckpoint
+      - action: continue_with_risk
+        side_effects: ["报告标注风险"]
+        next_state: RoutingResearchMode
+      - action: abandon
+        next_state: Failed
+
+  # 3. baseline_unreproducible —— baseline 多次无法复现
+  - reason: baseline_unreproducible
+    triggered_in:
+      - "baseline 多次无法复现(MOSS baseline_reproduction_thrashing 升级)"
+    actions:
+      - action: retry_session
+        side_effects: ["显式重试原 baseline；保留仓库、失败记录和累计次数，不放行未验证结果"]
+        next_state: ReproducingBaseline
+      - action: change_benchmark
+        side_effects: ["B delete key current_benchmark_id"]
+        next_state: SelectingBenchmark
+      - action: use_available_artifact
+        side_effects: ["报告标注 baseline caveat"]
+        next_state: GeneratingHypotheses
+      - action: write_replication_failure_report
+        next_state: Reporting
+      - action: abandon
+        next_state: Failed
+
+  # 4. hypothesis_stagnation —— hypothesis 连续被否
+  - reason: hypothesis_stagnation
+    triggered_in:
+      - "hypothesis 连续被否(MOSS hypothesis_stagnation 升级)"
+    actions:
+      - action: inject_idea
+        side_effects: ["C reset to 0"]
+        next_state: HumanIdeaCheckpoint
+      - action: broaden_search
+        side_effects: ["C reset to 0"]
+        next_state: GeneratingHypotheses
+      - action: narrow_scope
+        side_effects: ["C reset to 0"]
+        next_state: ModelingProblem
+      - action: abandon
+        next_state: Failed
+
+  # 5. experiment_design_thrashing —— 实验计划反复不可跑或不公平
+  - reason: experiment_design_thrashing
+    triggered_in:
+      - "实验计划反复不可跑或不公平(MOSS experiment_design_thrashing 升级)"
+    actions:
+      - action: revise_component
+        side_effects: ["E delete key current_hypothesis_id"]
+        next_state: DeliberatingMethod
+      - action: revise_method
+        side_effects: ["E delete key current_hypothesis_id"]
+        next_state: GeneratingMethod
+      - action: simplify_experiment
+        side_effects: ["E delete key current_hypothesis_id"]
+        next_state: PlanningExperiment
+      - action: change_metric
+        next_state: ModelingProblem
+      - action: switch_to_theory_mode
+        next_state: DevelopingTheory
+      - action: abandon
+        next_state: Failed
+
+  # 6. implementation_thrashing —— patch 多次跑不起来
+  - reason: implementation_thrashing
+    triggered_in:
+      - "patch 多次跑不起来(MOSS implementation_thrashing 升级)"
+    actions:
+      - action: shrink_patch
+        side_effects: ["F delete key current_experiment_id"]
+        next_state: ImplementingExperiment
+      - action: change_plan
+        next_state: PlanningExperiment
+      - action: discard_hypothesis
+        next_state: ConsolidatingMemory
+      - action: abandon
+        next_state: Failed
+
+  # 7. result_suspicious —— best result 复验失败或疑似作弊
+  - reason: result_suspicious
+    triggered_in:
+      - "best result 复验失败或疑似作弊(MOSS result_suspicious 升级)"
+    actions:
+      - action: discard_result
+        side_effects: ["G delete key current_result_id"]
+        next_state: ConsolidatingMemory
+      - action: strict_rerun
+        next_state: RunningExperiment
+      - action: accept_with_caveat
+        side_effects: ["报告标注 caveat"]
+        # via ConsolidatingMemory (NOT straight to Reporting): the finding must be
+        # written into ResearchMemory before the report, else an accepted-with-caveat
+        # result yields an EMPTY report (the method won but nothing is consolidated).
+        next_state: ConsolidatingMemory
+      - action: abandon
+        next_state: Failed
+
+  # 8. research_thrashing —— H>=3
+  - reason: research_thrashing
+    triggered_in:
+      - "H >= 3(ResearchRework 入口熔断)"
+    actions:
+      - action: modify_goal
+        side_effects: ["H reset to 0"]
+        next_state: ClarifyingResearchGoal
+      - action: accept_negative_result
+        next_state: Reporting
+      - action: open_new_session
+        side_effects: ["当前报告标注未完成"]
+        next_state: Done
+      - action: abandon
+        next_state: Failed
+
+  # 9. cost_exceeded —— LLM 或 compute cost 达到 100%
+  - reason: cost_exceeded
+    triggered_in:
+      - "cumulative_llm_cost 或 cumulative_compute_cost 达到 100% 硬熔断"
+    actions:
+      - action: continue_budget
+        side_effects: ["开新预算"]
+        next_state: "{previous_state}"
+      - action: report_now
+        next_state: Reporting
+      - action: abandon
+        next_state: Failed
+
+  # 10. agent_failure —— permanent failure 或 transient 重试 3 次
+  - reason: agent_failure
+    triggered_in:
+      - "agent permanent failure,或 transient 重试(J>=3)升级"
+    actions:
+      - action: retry_session
+        side_effects: ["J clear all keys", "clear last_agent_failure"]
+        next_state: "{failed_state}"
+      - action: switch_model_or_tool
+        next_state: "{failed_state}"
+      - action: report_now
+        guard: "可用产物存在"
+        next_state: Reporting
+      - action: abandon
+        next_state: Failed
+
+  # 11. protocol_violation —— agent 修改禁止项或绕过 evaluator
+  - reason: protocol_violation
+    triggered_in:
+      - "agent 修改禁止项或绕过 evaluator(MOSS protocol_violation 升级)"
+    actions:
+      - action: rollback_and_retry
+        next_state: "{violation_state}"
+      - action: abandon_result
+        next_state: ConsolidatingMemory
+      - action: abandon
+        next_state: Failed
+        note: "对应 V1.10 §3 的 abandon_session → Failed"
+
+  # 12. literature_uncertain —— 文献 / novelty 审计仍不可靠
+  - reason: literature_uncertain
+    triggered_in:
+      - "文献 / novelty 审计仍不可靠(MOSS literature_novelty_audit_failed 升级)"
+    actions:
+      - action: deepen_literature
+        side_effects: ["K reset to 0"]
+        next_state: DeepResearching
+      - action: human_literature_seed
+        next_state: HumanIdeaCheckpoint
+      - action: continue_with_caveat
+        side_effects: ["报告标注 novelty caveat"]
+        next_state: ConfirmingMethod
+      - action: abandon
+        next_state: Failed
+
+  # 13. verifier_missing —— benchmark 或实验无法建立可靠 verifier
+  - reason: verifier_missing
+    triggered_in:
+      - "无法建立可靠 verifier(MOSS verifier_invalid 升级)"
+    actions:
+      - action: change_benchmark
+        next_state: SelectingBenchmark
+      - action: switch_to_theory_mode
+        next_state: DevelopingTheory
+      - action: report_replication_limits
+        next_state: Reporting
+      - action: abandon
+        next_state: Failed
+
+  # 14. search_space_collapse —— hypothesis branch 过度集中
+  - reason: search_space_collapse
+    triggered_in:
+      - "hypothesis branch 过度集中(MOSS search_diversity_collapse 升级)"
+    actions:
+      - action: inject_idea
+        side_effects: ["L reset to 0"]
+        next_state: HumanIdeaCheckpoint
+      - action: broaden_search
+        side_effects: ["L reset to 0"]
+        next_state: GeneratingHypotheses
+      - action: accept_local_search
+        side_effects: ["报告标注 search caveat"]
+        next_state: PlanningExperiment
+      - action: abandon
+        next_state: Failed
+
+  # 15. external_experiment_blocked —— 外部实验缺少资源、权限、伦理或材料
+  - reason: external_experiment_blocked
+    triggered_in:
+      - "PreparingExternalExperiment 判定实验不可执行或缺少关键资源"
+    actions:
+      - action: revise_protocol
+        next_state: PlanningExperiment
+      - action: provide_resource
+        next_state: PreparingExternalExperiment
+      - action: report_not_run
+        side_effects: ["报告标注 experiment_not_run"]
+        next_state: Reporting
+      - action: abandon
+        next_state: Failed
+
+  # 16. external_data_incomplete —— 上传数据或 metadata 不完整
+  - reason: external_data_incomplete
+    triggered_in:
+      - "AwaitingExternalExperimentResult 判定数据缺失或 metadata 不足"
+    actions:
+      - action: upload_more_data
+        next_state: AwaitingExternalExperimentResult
+      - action: analyze_with_caveat
+        side_effects: ["报告标注 data caveat"]
+        next_state: AnalyzingExternalData
+      - action: report_incomplete
+        next_state: Reporting
+      - action: abandon
+        next_state: Failed
+
+  # 17. analysis_consensus_uncertain —— 多条数据分析轨迹无法收敛
+  - reason: analysis_consensus_uncertain
+    triggered_in:
+      - "多条数据分析轨迹无法收敛(MOSS data_analysis_consensus_failed 升级)"
+    actions:
+      - action: tighten_analysis_plan
+        side_effects: ["M delete key current_external_experiment_id"]
+        next_state: AnalyzingExternalData
+      - action: human_data_review
+        next_state: HumanIdeaCheckpoint
+      - action: accept_with_caveat
+        side_effects: ["报告标注 analysis caveat"]
+        next_state: EvaluatingExperiment
+      - action: abandon
+        next_state: Failed
+
+  # 18. out_of_scope —— ReinterpretingSpec 判定 topic 无法建立可靠 verifier
+  - reason: out_of_scope
+    triggered_in:
+      - "ReinterpretingSpec 判定 topic 不在 scope 内(无法建立可靠 verifier / 不可执行 / 不可复验)"
+    actions:
+      - action: narrow_to_verifiable
+        side_effects: ["缩小到可验证子问题"]
+        next_state: ClarifyingResearchGoal
+      - action: proceed_out_of_scope
+        side_effects: ["走保留模式(IdeaTheory / Lab),报告标注 out-of-scope"]
+        next_state: RoutingResearchMode
+      - action: abandon
+        next_state: Failed
+
+# ===========================================================================
+# 全局规则
+# ===========================================================================
+global_rules:
+  - rule_id: abandon_is_always_available
+    statement: "所有 reason 都包含 abandon action,且 abandon 永远 available → Failed。"
+  - rule_id: action_validation
+    statement: |
+      收到 user_action_received 后校验 (current_reason, payload.action) 在矩阵内、
+      payload.reason == current_reason、guard 满足;失败则拒绝 transition。
+  - rule_id: side_effects_atomic_with_transition
+    statement: "side_effects 和 transition 在同一事务内执行(outbox 模式)。"

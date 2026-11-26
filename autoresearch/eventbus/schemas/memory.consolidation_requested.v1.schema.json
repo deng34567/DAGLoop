@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/memory.consolidation_requested.v1.schema.json",
+  "title": "memory.consolidation_requested (v1)",
+  "description": "ResearchOrchestrator instructs MemoryAgent to consolidate the frozen EvaluationReport (and RunRecord, and optionally an existing ResearchMemory / VerificationReport) into an updated ResearchMemory (ConsolidatingMemory state, state machine V1.10). MemoryAgent's ConsolidatingMemory mode is M13 -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "anyOf": [
+    {
+      "properties": {
+        "evaluation_report_ref": {"type": "string"},
+        "run_record_ref": {"type": "string"}
+      },
+      "required": ["evaluation_report_ref", "run_record_ref"]
+    },
+    {"properties": {"run_record_ref": {"type": "string"}}, "required": ["run_record_ref"]},
+    {"properties": {"baseline_result_ref": {"type": "string"}}, "required": ["baseline_result_ref"]},
+    {"properties": {"failure_context": {"type": "object"}}, "required": ["failure_context"]},
+    {"properties": {"theory_method_ref": {"type": "string"}}, "required": ["theory_method_ref"]}
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "method_ref": {"type": "string"},
+    "applied_method_feedback_ref": {"type": "string"},
+    "qualified_component_closeout_requested": {"type": "boolean"},
+    "evaluation_report_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the frozen EvaluationReport object to consolidate."
+    },
+    "run_record_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the frozen RunRecord object the evaluation was based on."
+    },
+    "research_memory_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the prior ResearchMemory to build on, or null if none exists yet."
+    },
+    "verification_report_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the frozen VerificationReport, or null if the result was not (yet) verified."
+    },
+    "baseline_result_ref": {
+      "type": ["string", "null"]
+    },
+    "baseline_attempt_ref": {
+      "type": ["string", "null"],
+      "description": "Last baseline attempt for diagnosis only; may be infeasible."
+    },
+    "failure_context": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["reason"],
+      "properties": {
+        "reason": {"type": "string", "minLength": 1},
+        "action": {"type": ["string", "null"]},
+        "artifact_ref": {"type": ["string", "null"]},
+        "method_ref": {"type": ["string", "null"]}
+      }
+    },
+    "theory_method_ref": {
+      "type": "string",
+      "description": "Frozen reviewed Method used as the scientific payload for an idea_theory task."
+    },
+    "problem_model_ref": {
+      "type": ["string", "null"]
+    },
+    "spec_interpretation_ref": {
+      "type": ["string", "null"]
+    }
+  }
+}

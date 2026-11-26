@@ -1,0 +1,179 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/literature_brief.schema.yaml"
+title: "LiteratureBrief"
+description: >
+  Frozen artifact produced by DeepResearchAgent's two-pass literature search
+  (AutoResearch state machine V1.10 §1, DeepResearching). Stored as a blob in
+  the Research Store (kind="literature_brief"); only its ref is carried in the
+  literature.brief_ready event payload. key_papers and existing_benchmarks
+  must be grounded in the papers actually retrieved by the search backend --
+  never invented.
+"$defs":
+  Paper:
+    type: object
+    required:
+      - title
+      - id_or_url
+    additionalProperties: false
+    properties:
+      title:
+        type: string
+        description: "Paper title."
+      id_or_url:
+        type: string
+        description: "Stable identifier for the paper (e.g. arXiv id, DOI, or URL)."
+      year:
+        type: integer
+        description: "Publication year, if known."
+      note:
+        type: string
+        description: "Free-form note on why this paper is relevant."
+  Benchmark:
+    type: object
+    required:
+      - name
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        description: "Benchmark name."
+      id_or_url:
+        type: string
+        description: "Identifier or URL for the benchmark, if known."
+      note:
+        type: string
+        description: "Free-form note on the benchmark's relevance."
+  EvidenceDag:
+    type: object
+    required: [directions, papers, claims, edges]
+    additionalProperties: false
+    properties:
+      directions:
+        type: array
+        items:
+          type: object
+          required: [id, label, basis, source_refs]
+          additionalProperties: false
+          properties:
+            id: {type: string}
+            label: {type: string}
+            basis: {type: string}
+            source_refs:
+              type: array
+              minItems: 1
+              items: {type: string, minLength: 1}
+      papers:
+        type: array
+        items:
+          type: object
+          required: [id, title, id_or_url, authors, year, evidence]
+          additionalProperties: false
+          properties:
+            id: {type: string}
+            title: {type: string}
+            id_or_url: {type: string}
+            authors:
+              type: array
+              items: {type: string}
+            year: {type: [integer, "null"]}
+            evidence:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                required: [location, snippet]
+                additionalProperties: false
+                properties:
+                  location: {type: string, minLength: 1}
+                  snippet: {type: string, minLength: 1}
+      claims:
+        type: array
+        items:
+          type: object
+          required: [id, text, evidence]
+          additionalProperties: false
+          properties:
+            id: {type: string}
+            text: {type: string}
+            evidence:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                required: [paper_id, location, snippet]
+                additionalProperties: false
+                properties:
+                  paper_id: {type: string, minLength: 1}
+                  location: {type: string, minLength: 1}
+                  snippet: {type: string, minLength: 1}
+      edges:
+        type: array
+        items:
+          type: object
+          required: [source, target, relation]
+          additionalProperties: false
+          properties:
+            source: {type: string}
+            target: {type: string}
+            relation:
+              type: string
+              enum: [direction_has_paper, paper_supports_claim, claim_depends_on]
+  PrimaryCore:
+    type: object
+    required: [core_id, intervention, causal_mechanism, pipeline_role, expected_effect]
+    additionalProperties: false
+    properties:
+      core_id: {type: string, minLength: 1}
+      intervention: {type: string, minLength: 1}
+      causal_mechanism: {type: string, minLength: 1}
+      pipeline_role: {type: string, minLength: 1}
+      expected_effect: {type: string, minLength: 1}
+type: object
+required:
+  - summary
+  - key_papers
+additionalProperties: false
+properties:
+  summary:
+    type: string
+    description: "Narrative summary of the literature landscape relevant to the ResearchSpec."
+  related_work:
+    type: array
+    items:
+      "$ref": "#/$defs/Paper"
+    description: "Related papers found during the search. May be empty."
+  key_papers:
+    type: array
+    items:
+      "$ref": "#/$defs/Paper"
+    description: "The most important papers grounding this brief. Must be a subset of the retrieved (seminal + frontier) papers."
+  existing_benchmarks:
+    type: array
+    items:
+      "$ref": "#/$defs/Benchmark"
+    description: "Benchmarks relevant to the research topic. May be empty."
+  evidence_dag:
+    "$ref": "#/$defs/EvidenceDag"
+    description: >
+      Grounded direction-paper-claim DAG derived from the user question and clarification.
+      Papers and claims may have multiple parents; every claim must be supported by at least one
+      retrieved paper.
+  evidence_gaps:
+    type: array
+    description: >
+      Remaining bounded evidence gaps after targeted follow-up search. Empty means no known gap;
+      non-empty gaps are preserved honestly rather than filled with invented evidence.
+    items:
+      type: object
+      required: [direction_id, query, reason, attempted]
+      additionalProperties: false
+      properties:
+        direction_id: {type: string}
+        query: {type: string}
+        reason: {type: string}
+        attempted: {type: boolean}
+  searched_method_primary_core:
+    "$ref": "#/$defs/PrimaryCore"
+    description: >
+      Main causal method extracted before a method-targeted search. Novelty comparison must reuse
+      this exact signature so retrieval and judgment concern the same method identity.

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/hypothesis.critique_requested.v1.schema.json",
+  "title": "hypothesis.critique_requested (v1)",
+  "description": "ResearchOrchestrator instructs CriticAgent to critique the frozen HypothesisBank against the frozen ResearchSpec. As of the RankingJudgeAgent milestone (Task 4), this is published IN-STATE after ranking.ready and optionally carries ranking_report_ref so the critique is rank-informed.",
+  "type": "object",
+  "required": [
+    "hypothesis_bank_ref",
+    "research_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "hypothesis_bank_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen HypothesisBank object."
+    },
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchSpec object."
+    },
+    "ranking_report_ref": {
+      "type": ["string", "null"],
+      "description": "Optional opaque ref into the Research Store resolving to the RankingJudgeAgent RankingReport that ranked the HypothesisBank's candidates; null/absent when no ranking is available."
+    }
+  }
+}

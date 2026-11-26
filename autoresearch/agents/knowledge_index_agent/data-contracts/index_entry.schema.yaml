@@ -1,0 +1,40 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/index_entry.schema.yaml"
+title: "IndexEntry"
+description: >
+  A single entry in KnowledgeIndexAgent's knowledge index. Written by
+  KnowledgeIndexAgent's core at ingest time (kind="knowledge_index" in the
+  Research Store) from an IndexEntryInput (path_or_ref, summary, optional
+  tags -- see knowledge.ingest_requested.v1.schema.json), with type/source/
+  produced_by_state filled in by the core. Returned (ranked, via the
+  retrieval backend adapter) in knowledge.retrieve_result.v1.schema.json.
+type: object
+required:
+  - path_or_ref
+  - type
+  - summary
+  - source
+  - produced_by_state
+additionalProperties: false
+properties:
+  path_or_ref:
+    type: string
+    description: "Path or opaque ref identifying the indexed artifact."
+  type:
+    type: string
+    description: "Kind of artifact being indexed (e.g. literature_brief, code, evidence)."
+  summary:
+    type: string
+    description: "Short human-readable summary of the artifact."
+  tags:
+    type: array
+    items:
+      type: string
+    default: []
+    description: "Free-form tags. Defaults to an empty array if omitted."
+  source:
+    type: string
+    description: "Where this entry originated (e.g. emitting agent or artifact kind)."
+  produced_by_state:
+    type: string
+    description: "State-machine state active when this entry was produced."

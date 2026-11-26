@@ -1,0 +1,862 @@
+# EventBus Registry (V1)
+#
+# This file is loaded by the broker library at startup to build:
+#   - emitter whitelist (which emitter is allowed to publish which event_type)
+#   - schema lookup table (event_type -> JSON Schema file path)
+#   - direction lookup (outbound / inbound / cross-cutting)
+#
+# Synchronized with the AutoResearch state machine design doc:
+# docs/architecture/AutoResearch完整状态机V1.md (V1.10).
+#
+# M0 SLICE: only the 2 events M0 needs are defined here (契约先行·第一片).
+# The remaining events in the full catalog are added incrementally by later
+# per-agent tasks. Do NOT pre-populate the whole catalog ahead of need.
+
+version: "1"
+state_machine_skill_version: "V1.10"
+
+# Each event has:
+#   type: dot-separated event name (matches envelope.event_type)
+#   direction: outbound | inbound | cross-cutting
+#   schema: relative path to JSON Schema file
+#   schema_versions: list of supported schema versions (used for graceful migration)
+#   emitters: whitelist of legitimate emitters
+
+events:
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator emits commands to drive agents.
+  # ===========================================================================
+
+  - type: problem_modeling.requested
+    direction: outbound
+    schema: schemas/problem_modeling.requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # Entry action of the ClarifyingResearchGoal state (state machine V1.10):
+    # ProblemModelingAgent confirms topic/goal/task mode/budget/deliverable
+    # form/allowed-modification-scope/forbidden-items with the user, writing
+    # the resulting ResearchSpec into the Research Store.
+
+  - type: problem_modeling.clarification_question
+    direction: outbound
+    schema: schemas/problem_modeling.clarification_question.v1.schema.json
+    schema_versions: [1]
+    emitters: [ProblemModelingAgent]
+    # ClarifyingResearchGoal dialogue turn: ProblemModelingAgent asks the human
+    # a single clarification question (optionally with fixed options), correlated
+    # by question_id with the human's human.clarification_answer reply.
+
+  - type: research_spec.ready
+    direction: outbound
+    schema: schemas/research_spec.ready.v1.schema.json
+    schema_versions: [1]
+    emitters: [ProblemModelingAgent]
+    # ProblemModelingAgent has frozen a complete ResearchSpec into the Research
+    # Store (see agents/problem_modeling_agent/data-contracts/research_spec.schema.yaml)
+    # and signals ResearchOrchestrator to transition ClarifyingResearchGoal -> DeepResearching.
+
+  - type: deep_research.requested
+    direction: outbound
+    schema: schemas/deep_research.requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # Entry action of the DeepResearching state (state machine V1.10):
+    # ResearchOrchestrator instructs DeepResearchAgent to begin literature /
+    # field-trajectory research grounded in the frozen ResearchSpec.
+    # DeepResearchAgent itself is M2 -- no consumer yet; this is the frozen
+    # contract only.
+
+  - type: problem_modeling.reinterpret_requested
+    direction: outbound
+    schema: schemas/problem_modeling.reinterpret_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # Entry action of the ReinterpretingSpec state (state machine V1.10):
+    # ResearchOrchestrator instructs ProblemModelingAgent to reinterpret the
+    # frozen ResearchSpec in light of the literature.brief_ready briefs.
+    # ProblemModelingAgent's ReinterpretingSpec mode is deferred past M2 --
+    # this is the frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: DeepResearchAgent emits its research products.
+  # ===========================================================================
+
+  - type: literature.brief_ready
+    direction: outbound
+    schema: schemas/literature.brief_ready.v1.schema.json
+    schema_versions: [1]
+    emitters: [DeepResearchAgent]
+    # DeepResearchAgent has finished the two-pass literature search and frozen
+    # a LiteratureBrief + FieldTrajectoryBrief into the Research Store (see
+    # agents/deep_research_agent/data-contracts/{literature_brief,field_trajectory_brief}.schema.yaml)
+    # and signals ResearchOrchestrator to transition DeepResearching -> ReinterpretingSpec.
+
+  - type: spec.reinterpreted
+    direction: outbound
+    schema: schemas/spec.reinterpreted.v1.schema.json
+    schema_versions: [1]
+    emitters: [ProblemModelingAgent]
+    # ProblemModelingAgent's ReinterpretingSpec mode (state machine V1.10 §1)
+    # has frozen a SpecInterpretation (and, if scope_changed, a revised
+    # ResearchSpec) into the Research Store (see
+    # agents/problem_modeling_agent/data-contracts/spec_interpretation.schema.yaml)
+    # and signals ResearchOrchestrator of its disposition verdict.
+
+  - type: novelty.audit_requested
+    direction: outbound
+    schema: schemas/novelty.audit_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # Following ReinterpretingSpec: ResearchOrchestrator instructs
+    # NoveltyAuditAgent to audit the reinterpreted ResearchSpec against prior
+    # literature. NoveltyAuditAgent itself is out of scope for this task --
+    # this is the frozen contract only; no consumer wired yet.
+
+  - type: problem_modeling.model_requested
+    direction: outbound
+    schema: schemas/problem_modeling.model_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # Following NoveltyAuditAgent's audit: ResearchOrchestrator instructs
+    # ProblemModelingAgent to proceed with modeling based on the frozen
+    # ResearchSpec, LiteratureBrief, and NoveltyAuditReport. This is the
+    # frozen contract only; no consumer wired yet.
+
+  - type: direction.critique_requested
+    direction: outbound
+    schema: schemas/direction.critique_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # Entry action of the CritiquingDirection state (state machine V1.10 §1):
+    # ResearchOrchestrator instructs CriticAgent to critique the frozen
+    # ProblemModel against the frozen ResearchSpec. CriticAgent itself is out
+    # of scope for this task (M6) -- this is the frozen contract only; no
+    # consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: NoveltyAuditAgent emits its audit verdict.
+  # ===========================================================================
+
+  - type: novelty.audit_ready
+    direction: outbound
+    schema: schemas/novelty.audit_ready.v1.schema.json
+    schema_versions: [1]
+    emitters: [NoveltyAuditAgent]
+    # NoveltyAuditAgent has finished auditing the reinterpreted ResearchSpec
+    # against prior literature and frozen a NoveltyAuditReport into the
+    # Research Store (see
+    # agents/novelty_audit_agent/data-contracts/novelty_audit_report.schema.yaml).
+    # NoveltyAuditAgent itself is out of scope for this task -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  - type: evidence.audit_requested
+    direction: outbound
+    schema: schemas/evidence.audit_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # EvidenceAuditAgent Task 1: ResearchOrchestrator instructs
+    # EvidenceAuditAgent to audit claim-citation support in the reinterpreted
+    # ResearchSpec against the literature. EvidenceAuditAgent itself is out
+    # of scope for this task -- this is the frozen contract only; no
+    # consumer wired yet.
+
+  - type: evidence.audited
+    direction: outbound
+    schema: schemas/evidence.audited.v1.schema.json
+    schema_versions: [1]
+    emitters: [EvidenceAuditAgent]
+    # EvidenceAuditAgent has finished auditing claim-citation support and
+    # frozen an EvidenceAuditReport into the Research Store (see
+    # agents/evidence_audit_agent/data-contracts/evidence_audit_report.schema.yaml).
+    # EvidenceAuditAgent itself is out of scope for this task -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  - type: evidence.citation_audit_requested
+    direction: outbound
+    schema: schemas/evidence.citation_audit_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # EvidenceAuditAgent Task 1: ResearchOrchestrator instructs
+    # EvidenceAuditAgent to audit the consolidated ResearchMemory for claims
+    # lacking citation support. EvidenceAuditAgent itself is out of scope
+    # for this task -- this is the frozen contract only; no consumer wired
+    # yet.
+
+  - type: evidence.citation_audited
+    direction: outbound
+    schema: schemas/evidence.citation_audited.v1.schema.json
+    schema_versions: [1]
+    emitters: [EvidenceAuditAgent]
+    # EvidenceAuditAgent has finished auditing the consolidated
+    # ResearchMemory for claims lacking citation support and frozen a
+    # CitationAuditReport into the Research Store (see
+    # agents/evidence_audit_agent/data-contracts/citation_audit_report.schema.yaml).
+    # EvidenceAuditAgent itself is out of scope for this task -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  - type: ranking.requested
+    direction: outbound
+    schema: schemas/ranking.requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # RankingJudgeAgent Task 1: ResearchOrchestrator instructs
+    # RankingJudgeAgent to rank candidates (currently only "hypothesis";
+    # "benchmark" is deferred). candidate_ids is optional -- absent means
+    # rank all candidates found in source_ref. RankingJudgeAgent itself is
+    # out of scope for this task -- this is the frozen contract only; no
+    # consumer wired yet.
+
+  - type: ranking.ready
+    direction: outbound
+    schema: schemas/ranking.ready.v1.schema.json
+    schema_versions: [1]
+    emitters: [RankingJudgeAgent]
+    # RankingJudgeAgent has finished ranking candidates and frozen a
+    # RankingReport into the Research Store (see
+    # agents/ranking_judge_agent/data-contracts/ranking_report.schema.yaml).
+    # RankingJudgeAgent itself is out of scope for this task -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  - type: data_analysis.requested
+    direction: outbound
+    schema: schemas/data_analysis.requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # DataAnalysisAgent Task 1: ResearchOrchestrator instructs DataAnalysisAgent
+    # to analyze an uploaded external dataset against the frozen external
+    # experiment package, at a given strictness level. DataAnalysisAgent itself
+    # is out of scope for this task -- this is the frozen contract only; no
+    # consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: DataAnalysisAgent emits its analysis verdict.
+  # ===========================================================================
+
+  - type: data_analysis.ready
+    direction: outbound
+    schema: schemas/data_analysis.ready.v1.schema.json
+    schema_versions: [1]
+    emitters: [DataAnalysisAgent]
+    # DataAnalysisAgent has finished analyzing the uploaded external dataset
+    # and frozen an ExternalDataAnalysisReport into the Research Store (see
+    # agents/data_analysis_agent/data-contracts/external_data_analysis_report.schema.yaml).
+    # DataAnalysisAgent itself is out of scope for this task -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Inbound: the human provides a decision at a LabInTheLoop checkpoint.
+  # ===========================================================================
+
+  - type: user.decision_provided
+    direction: inbound
+    schema: schemas/user.decision_provided.v1.schema.json
+    schema_versions: [1]
+    emitters: [Human]
+    # The human's decision at a LabInTheLoop checkpoint (e.g. a data-analysis
+    # divergence review). 'Human' represents the user/CLI/frontend acting on
+    # behalf of the user.
+
+  # ===========================================================================
+  # Inbound: the human uploads external experiment data.
+  # ===========================================================================
+
+  - type: external.data_uploaded
+    direction: inbound
+    schema: schemas/external.data_uploaded.v1.schema.json
+    schema_versions: [1]
+    emitters: [Human]
+    # The human has uploaded external experiment data for a LabInTheLoop
+    # external experiment. 'Human' represents the user/CLI/frontend acting on
+    # behalf of the user.
+
+  - type: hypothesis.generation_requested
+    direction: outbound
+    schema: schemas/hypothesis.generation_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # Following ProblemModelingAgent's modeling pass: ResearchOrchestrator
+    # instructs HypothesisAgent to generate a HypothesisBank grounded in the
+    # frozen ResearchSpec and LiteratureBrief. HypothesisAgent itself is out
+    # of scope for this task -- this is the frozen contract only; no consumer
+    # wired yet.
+
+  # ===========================================================================
+  # Outbound: HypothesisAgent emits its generated hypothesis bank.
+  # ===========================================================================
+
+  - type: hypothesis.generated
+    direction: outbound
+    schema: schemas/hypothesis.generated.v1.schema.json
+    schema_versions: [1]
+    emitters: [HypothesisAgent]
+    # HypothesisAgent has finished generating hypotheses and frozen a
+    # HypothesisBank into the Research Store (see
+    # agents/hypothesis_agent/data-contracts/hypothesis_bank.schema.yaml).
+    # HypothesisAgent itself is out of scope for this task -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ProblemModelingAgent emits its ModelingProblem output.
+  # ===========================================================================
+
+  - type: problem.modeled
+    direction: outbound
+    schema: schemas/problem.modeled.v1.schema.json
+    schema_versions: [1]
+    emitters: [ProblemModelingAgent]
+    # ProblemModelingAgent's ModelingProblem mode (state machine V1.10 §1) has
+    # read the frozen ResearchSpec, LiteratureBrief, and NoveltyAuditReport
+    # and frozen a ProblemModel into the Research Store (see
+    # agents/problem_modeling_agent/data-contracts/problem_model.schema.yaml)
+    # and signals ResearchOrchestrator to transition ModelingProblem ->
+    # HumanIdeaCheckpoint.
+
+  # ===========================================================================
+  # Inbound: upstream agents ask KnowledgeIndexAgent to ingest/retrieve.
+  # ===========================================================================
+
+  - type: knowledge.ingest_requested
+    direction: inbound
+    schema: schemas/knowledge.ingest_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ProblemModelingAgent, DeepResearchAgent, NoveltyAuditAgent, ResearchOrchestrator]
+    # An upstream agent asks KnowledgeIndexAgent to ingest one or more
+    # IndexEntryInput items (see agents/knowledge_index_agent/data-contracts/
+    # index_entry.schema.yaml) into the knowledge index.
+
+  - type: knowledge.retrieve_requested
+    direction: inbound
+    schema: schemas/knowledge.retrieve_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ProblemModelingAgent, DeepResearchAgent, NoveltyAuditAgent, CriticAgent,
+               EvaluatorAgent, ReportAgent, ResearchOrchestrator]
+    # An upstream agent asks KnowledgeIndexAgent to retrieve index entries
+    # matching a query. KnowledgeIndexAgent replies with knowledge.retrieve_result.
+
+  # ===========================================================================
+  # Outbound: KnowledgeIndexAgent replies to a retrieve request.
+  # ===========================================================================
+
+  - type: knowledge.retrieve_result
+    direction: outbound
+    schema: schemas/knowledge.retrieve_result.v1.schema.json
+    schema_versions: [1]
+    emitters: [KnowledgeIndexAgent]
+    # KnowledgeIndexAgent's reply to knowledge.retrieve_requested: ranked
+    # IndexEntry items (via its retrieval backend adapter) plus hit_count.
+
+  # ===========================================================================
+  # Inbound: the human answers a clarification question.
+  # ===========================================================================
+
+  - type: human.clarification_answer
+    direction: inbound
+    schema: schemas/human.clarification_answer.v1.schema.json
+    schema_versions: [1]
+    emitters: [Human]
+    # Reply to problem_modeling.clarification_question, correlated by question_id.
+    # 'Human' represents the user/CLI/frontend acting on behalf of the user.
+
+  # ===========================================================================
+  # Inbound: the human responds at the HumanIdeaCheckpoint state.
+  # ===========================================================================
+
+  - type: human.idea_provided
+    direction: inbound
+    schema: schemas/human.idea_provided.v1.schema.json
+    schema_versions: [1]
+    emitters: [Human]
+    # The human's response at the HumanIdeaCheckpoint state (state machine
+    # V1.10 §1), advancing it to the return_to state (e.g. CritiquingDirection
+    # or AuditingLiteratureNovelty, depending on which path entered the
+    # checkpoint). 'Human' represents the user/CLI/frontend acting on behalf
+    # of the user.
+
+  # ===========================================================================
+  # Method phase: derive, deliberate, confirm, and revise the explicit method.
+  # ===========================================================================
+
+  - type: method.generation_requested
+    direction: outbound
+    schema: schemas/method.generation_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+
+  - type: method.generated
+    direction: outbound
+    schema: schemas/method.generated.v1.schema.json
+    schema_versions: [1]
+    emitters: [MethodAgent]
+
+  - type: method.deliberation_requested
+    direction: outbound
+    schema: schemas/method.deliberation_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+
+  - type: method.deliberated
+    direction: outbound
+    schema: schemas/method.deliberated.v1.schema.json
+    schema_versions: [1]
+    emitters: [MethodAgent]
+
+  - type: method.revise_requested
+    direction: outbound
+    schema: schemas/method.revise_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+
+  - type: method.confirmed
+    direction: inbound
+    schema: schemas/method.confirmed.v1.schema.json
+    schema_versions: [1]
+    emitters: [Human]
+
+  # The older general deep-deliberation state is currently off the main route,
+  # but its handler remains a supported, fail-open interface.
+  - type: deliberation.requested
+    direction: outbound
+    schema: schemas/deliberation.requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+
+  - type: deliberation.ready
+    direction: outbound
+    schema: schemas/deliberation.ready.v1.schema.json
+    schema_versions: [1]
+    emitters: [DeliberationAgent]
+
+  # ===========================================================================
+  # Outbound: CriticAgent emits its critique verdict on the ProblemModel.
+  # ===========================================================================
+
+  - type: direction.critiqued
+    direction: outbound
+    schema: schemas/direction.critiqued.v1.schema.json
+    schema_versions: [1]
+    emitters: [CriticAgent]
+    # CriticAgent has finished critiquing the frozen ProblemModel against the
+    # frozen ResearchSpec (following direction.critique_requested) and frozen
+    # a CritiqueReport into the Research Store (see
+    # agents/critic_agent/data-contracts/critique_report.schema.yaml).
+    # CriticAgent itself is out of scope for this task (M6) -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks CriticAgent to critique hypotheses.
+  # ===========================================================================
+
+  - type: hypothesis.critique_requested
+    direction: outbound
+    schema: schemas/hypothesis.critique_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # Following HypothesisAgent's generation pass: ResearchOrchestrator
+    # instructs CriticAgent to critique the frozen HypothesisBank against the
+    # frozen ResearchSpec. CriticAgent itself is out of scope for this task
+    # (M6) -- this is the frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: CriticAgent emits its critique verdict on the HypothesisBank.
+  # ===========================================================================
+
+  - type: hypothesis.critiqued
+    direction: outbound
+    schema: schemas/hypothesis.critiqued.v1.schema.json
+    schema_versions: [1]
+    emitters: [CriticAgent]
+    # CriticAgent has finished critiquing the frozen HypothesisBank against
+    # the frozen ResearchSpec (following hypothesis.critique_requested) and
+    # frozen a CritiqueReport into the Research Store (see
+    # agents/critic_agent/data-contracts/critique_report.schema.yaml).
+    # CriticAgent itself is out of scope for this task (M6) -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks EvaluatorAgent to select a benchmark.
+  # ===========================================================================
+
+  - type: benchmark.selection_requested
+    direction: outbound
+    schema: schemas/benchmark.selection_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator instructs EvaluatorAgent to select/prepare a
+    # benchmark for the frozen ResearchSpec, grounded in the LiteratureBrief.
+    # EvaluatorAgent itself is out of scope for this task (M7) -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: EvaluatorAgent emits its selected/prepared BenchmarkSpec.
+  # ===========================================================================
+
+  - type: benchmark.spec_ready
+    direction: outbound
+    schema: schemas/benchmark.spec_ready.v1.schema.json
+    schema_versions: [1]
+    emitters: [EvaluatorAgent]
+    # EvaluatorAgent has finished selecting/preparing a benchmark and frozen a
+    # BenchmarkSpec into the Research Store (see
+    # agents/evaluator_agent/data-contracts/benchmark_spec.schema.yaml).
+    # EvaluatorAgent itself is out of scope for this task (M7) -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks EvaluatorAgent to prepare a verifier.
+  # ===========================================================================
+
+  - type: verifier.preparation_requested
+    direction: outbound
+    schema: schemas/verifier.preparation_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator instructs EvaluatorAgent to prepare (verifier-first)
+    # a VerifierSpec for the frozen BenchmarkSpec and ResearchSpec.
+    # EvaluatorAgent itself is out of scope for this task (M7) -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: EvaluatorAgent emits its frozen verifier-first VerifierSpec.
+  # ===========================================================================
+
+  - type: verifier.spec_frozen
+    direction: outbound
+    schema: schemas/verifier.spec_frozen.v1.schema.json
+    schema_versions: [1]
+    emitters: [EvaluatorAgent]
+    # EvaluatorAgent has finished preparing the verifier-first VerifierSpec and
+    # frozen it into the Research Store (see
+    # agents/evaluator_agent/data-contracts/verifier_spec.schema.yaml).
+    # EvaluatorAgent itself is out of scope for this task (M7) -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks ExperimentPlannerAgent to plan an
+  # experiment for the selected hypothesis.
+  # ===========================================================================
+
+  - type: experiment.planning_requested
+    direction: outbound
+    schema: schemas/experiment.planning_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator instructs ExperimentPlannerAgent to plan a concrete
+    # experiment for the selected hypothesis, grounded in the frozen
+    # VerifierSpec, BenchmarkSpec, and ResearchSpec. ExperimentPlannerAgent
+    # itself is out of scope for this task (M8) -- this is the frozen contract
+    # only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ExperimentPlannerAgent emits its frozen ExperimentPlan.
+  # ===========================================================================
+
+  - type: experiment.plan_ready
+    direction: outbound
+    schema: schemas/experiment.plan_ready.v1.schema.json
+    schema_versions: [1]
+    emitters: [ExperimentPlannerAgent]
+    # ExperimentPlannerAgent has finished planning the experiment and frozen
+    # an ExperimentPlan into the Research Store (see
+    # agents/experiment_planner_agent/data-contracts/experiment_plan.schema.yaml).
+    # ExperimentPlannerAgent itself is out of scope for this task (M8) -- this
+    # is the frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks CriticAgent to review the ExperimentPlan.
+  # ===========================================================================
+
+  - type: experiment.review_requested
+    direction: outbound
+    schema: schemas/experiment.review_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator instructs CriticAgent to review the frozen
+    # ExperimentPlan against the frozen VerifierSpec. CriticAgent itself is
+    # out of scope for this task (M8) -- this is the frozen contract only; no
+    # consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: CriticAgent emits its review verdict on the ExperimentPlan.
+  # ===========================================================================
+
+  - type: experiment.plan_reviewed
+    direction: outbound
+    schema: schemas/experiment.plan_reviewed.v1.schema.json
+    schema_versions: [1]
+    emitters: [CriticAgent, Human]
+    # CriticAgent has finished reviewing the frozen ExperimentPlan against the
+    # frozen VerifierSpec (following experiment.review_requested) and frozen a
+    # CritiqueReport (target=experiment_plan) into the Research Store (see
+    # agents/critic_agent/data-contracts/critique_report.schema.yaml).
+    # CriticAgent itself is out of scope for this task (M8) -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks CoderAgent to implement the ExperimentPlan.
+  # ===========================================================================
+
+  - type: code.implementation_requested
+    direction: outbound
+    schema: schemas/code.implementation_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator instructs CoderAgent to implement the frozen
+    # ExperimentPlan against the frozen VerifierSpec's protocol. CoderAgent
+    # itself is out of scope for this task (M9) -- this is the frozen contract
+    # only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: CoderAgent emits its frozen ExperimentPatch.
+  # ===========================================================================
+
+  - type: code.implemented
+    direction: outbound
+    schema: schemas/code.implemented.v1.schema.json
+    schema_versions: [1]
+    emitters: [CoderAgent]
+    # CoderAgent has finished implementing the ExperimentPlan and frozen an
+    # ExperimentPatch into the Research Store (see
+    # agents/coder_agent/data-contracts/experiment_patch.schema.yaml).
+    # CoderAgent itself is out of scope for this task (M9) -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks RunnerAgent to reproduce the baseline.
+  # ===========================================================================
+
+  - type: baseline.reproduction_requested
+    direction: outbound
+    schema: schemas/baseline.reproduction_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator instructs RunnerAgent to reproduce the baseline of
+    # the frozen BenchmarkSpec under the frozen VerifierSpec's protocol.
+    # RunnerAgent itself is out of scope for this task (M10) -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: RunnerAgent emits its baseline reproduction verdict.
+  # ===========================================================================
+
+  - type: baseline.reproduced
+    direction: outbound
+    schema: schemas/baseline.reproduced.v1.schema.json
+    schema_versions: [1]
+    emitters: [RunnerAgent]
+    # RunnerAgent has finished attempting to reproduce the baseline and frozen
+    # a BaselineResult into the Research Store (see
+    # agents/runner_agent/data-contracts/baseline_result.schema.yaml).
+    # RunnerAgent itself is out of scope for this task (M10) -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks RunnerAgent to run the experiment.
+  # ===========================================================================
+
+  - type: experiment.run_requested
+    direction: outbound
+    schema: schemas/experiment.run_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator instructs RunnerAgent to run the frozen
+    # ExperimentPatch under the frozen VerifierSpec's protocol
+    # (RunningExperiment state, state machine V1.10). RunnerAgent's
+    # RunningExperiment mode is M11 -- this is the frozen contract only; no
+    # consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: RunnerAgent emits its experiment run verdict.
+  # ===========================================================================
+
+  - type: experiment.run_completed
+    direction: outbound
+    schema: schemas/experiment.run_completed.v1.schema.json
+    schema_versions: [1]
+    emitters: [RunnerAgent]
+    # RunnerAgent has finished running the ExperimentPatch and frozen a
+    # RunRecord into the Research Store (see
+    # agents/runner_agent/data-contracts/run_record.schema.yaml).
+    # RunnerAgent's RunningExperiment mode is M11 -- this is the frozen
+    # contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks EvaluatorAgent to evaluate the run.
+  # ===========================================================================
+
+  - type: experiment.evaluation_requested
+    direction: outbound
+    schema: schemas/experiment.evaluation_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator instructs EvaluatorAgent to evaluate the frozen
+    # RunRecord against the frozen BenchmarkSpec under the frozen
+    # VerifierSpec's protocol (EvaluatingExperiment state, state machine
+    # V1.10). EvaluatorAgent's EvaluatingExperiment mode is M12 -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: EvaluatorAgent emits its evaluation verdict.
+  # ===========================================================================
+
+  - type: experiment.evaluated
+    direction: outbound
+    schema: schemas/experiment.evaluated.v1.schema.json
+    schema_versions: [1]
+    emitters: [EvaluatorAgent]
+    # EvaluatorAgent has finished evaluating the RunRecord and frozen an
+    # EvaluationReport into the Research Store (see
+    # agents/evaluator_agent/data-contracts/evaluation_report.schema.yaml).
+    # EvaluatorAgent's EvaluatingExperiment mode is M12 -- this is the frozen
+    # contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks EvaluatorAgent to verify a new_best result.
+  # ===========================================================================
+
+  - type: result.verification_requested
+    direction: outbound
+    schema: schemas/result.verification_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator instructs EvaluatorAgent to verify the frozen
+    # EvaluationReport's new_best result against the frozen RunRecord under
+    # the frozen VerifierSpec's protocol (VerifyingBestResult state, state
+    # machine V1.10). EvaluatorAgent's VerifyingBestResult mode is M12 -- this
+    # is the frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: EvaluatorAgent emits its verification verdict.
+  # ===========================================================================
+
+  - type: result.verified
+    direction: outbound
+    schema: schemas/result.verified.v1.schema.json
+    schema_versions: [1]
+    emitters: [EvaluatorAgent]
+    # EvaluatorAgent has finished verifying the new_best result and frozen a
+    # VerificationReport into the Research Store (see
+    # agents/evaluator_agent/data-contracts/verification_report.schema.yaml).
+    # EvaluatorAgent's VerifyingBestResult mode is M12 -- this is the frozen
+    # contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks MemoryAgent to consolidate memory.
+  # ===========================================================================
+
+  - type: memory.consolidation_requested
+    direction: outbound
+    schema: schemas/memory.consolidation_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator instructs MemoryAgent to consolidate the frozen
+    # EvaluationReport (and RunRecord, and optionally an existing
+    # ResearchMemory / VerificationReport) into an updated ResearchMemory
+    # (ConsolidatingMemory state, state machine V1.10). MemoryAgent's
+    # ConsolidatingMemory mode is M13 -- this is the frozen contract only; no
+    # consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: MemoryAgent emits its consolidated memory + routing verdict.
+  # ===========================================================================
+
+  - type: memory.consolidated
+    direction: outbound
+    schema: schemas/memory.consolidated.v1.schema.json
+    schema_versions: [1]
+    emitters: [MemoryAgent]
+    # MemoryAgent has finished consolidating the ResearchMemory and frozen it
+    # into the Research Store (see
+    # agents/memory_agent/data-contracts/research_memory.schema.yaml).
+    # MemoryAgent's ConsolidatingMemory mode is M13 -- this is the frozen
+    # contract only; no consumer wired yet.
+
+  - type: report.requested
+    direction: outbound
+    schema: schemas/report.requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator instructs ReportAgent to compose the final honest
+    # Report from the frozen ResearchMemory (and optionally the original
+    # ResearchSpec). ReportAgent's Report-writing mode is M14 -- this is the
+    # frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ReportAgent emits its finished Report.
+  # ===========================================================================
+
+  - type: report.ready
+    direction: outbound
+    schema: schemas/report.ready.v1.schema.json
+    schema_versions: [1]
+    emitters: [ReportAgent]
+    # ReportAgent has finished composing the final honest Report and frozen
+    # it into the Research Store (see
+    # agents/report_agent/data-contracts/report.schema.yaml). ReportAgent's
+    # Report-writing mode is M14 -- this is the frozen contract only; no
+    # consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: ResearchOrchestrator asks MOSS to intervene.
+  # ===========================================================================
+
+  - type: moss.intervention_requested
+    direction: outbound
+    schema: schemas/moss.intervention_requested.v1.schema.json
+    schema_versions: [1]
+    emitters: [ResearchOrchestrator]
+    # ResearchOrchestrator asks MOSS to intervene (e.g. a loop/counter
+    # threshold was hit), optionally handing over a snapshot of the counters
+    # that triggered the request. MOSS Step 1 -- this is the frozen contract
+    # only; no consumer wired yet.
+
+  # ===========================================================================
+  # Outbound: MOSS emits its intervention decision.
+  # ===========================================================================
+
+  - type: moss.intervention_completed
+    direction: outbound
+    schema: schemas/moss.intervention_completed.v1.schema.json
+    schema_versions: [1]
+    emitters: [MOSS]
+    # MOSS has finished its intervention and frozen a MossDecision into the
+    # Research Store (see
+    # agents/moss_agent/data-contracts/moss_decision.schema.yaml). MOSS
+    # Step 1 -- this is the frozen contract only; no consumer wired yet.
+
+  # ===========================================================================
+  # Cross-cutting: failure event, emitted by any agent or the broker itself.
+  # ===========================================================================
+
+  - type: agent.failed
+    direction: cross-cutting
+    schema: schemas/agent.failed.v1.schema.json
+    schema_versions: [1]
+    emitters: [system, ProblemModelingAgent, DeepResearchAgent, KnowledgeIndexAgent,
+               NoveltyAuditAgent, HypothesisAgent, CriticAgent, EvaluatorAgent,
+               ExperimentPlannerAgent, CoderAgent, RunnerAgent, ReportAgent, MOSS,
+               MemoryAgent, EvidenceAuditAgent, RankingJudgeAgent, DataAnalysisAgent,
+               MethodAgent, MossWatchdog]
+    # 'system' = broker library identity, for emitting policy_violation when
+    # rejecting a publish. ResearchOrchestrator is the consumer, NOT in the
+    # emitter list (it is the cross-cutting failure-routing layer's target).
+
+# ===========================================================================
+# Global rules
+# ===========================================================================
+
+rules:
+  - id: stream-naming
+    pattern: "events:{session_id}"
+    description: "All events are XADD'd to a per-session stream named events:{session_id}."
+
+  - id: idempotency-key
+    field: envelope.event_id
+    description: "Same event_id received twice MUST be processed exactly once."
+
+  - id: ordering-guarantee
+    scope: per-stream
+    description: "Redis Streams guarantees ordering within a single stream. No ordering across streams."
+
+  - id: payload-evolution
+    additive_ok: true
+    breaking_change: "bump schema_version, keep old version 30 days in schema_versions list"

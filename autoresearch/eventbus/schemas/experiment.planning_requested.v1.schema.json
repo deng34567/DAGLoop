@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/experiment.planning_requested.v1.schema.json",
+  "title": "experiment.planning_requested (v1)",
+  "description": "ResearchOrchestrator instructs ExperimentPlannerAgent to plan a concrete experiment for the selected hypothesis, grounded in the frozen VerifierSpec, BenchmarkSpec, and ResearchSpec. ExperimentPlannerAgent itself is out of scope for this task (M8) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "anyOf": [
+    {"required": ["benchmark_spec_ref"], "properties": {"benchmark_spec_ref": {"type": "string"}}},
+    {"required": ["spec_interpretation_ref"], "properties": {"spec_interpretation_ref": {"type": "string"}}}
+  ],
+  "required": [
+    "research_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "hypothesis_bank_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the frozen HypothesisBank object."
+    },
+    "selected_hypothesis_id": {
+      "type": ["string", "null"],
+      "description": "ID (within the HypothesisBank) of the hypothesis to plan an experiment for."
+    },
+    "verifier_spec_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the frozen VerifierSpec object."
+    },
+    "benchmark_spec_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the frozen BenchmarkSpec object."
+    },
+    "spec_interpretation_ref": {
+      "type": ["string", "null"],
+      "description": "Optional SpecInterpretation carrying a lightweight validation_study."
+    },
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchSpec object."
+    },
+    "method_ref": {
+      "type": ["string", "null"],
+      "description": "Confirmed method to plan on the benchmark mainline; null on hypothesis tracks."
+    },
+    "baseline_result_ref": {
+      "type": ["string", "null"],
+      "description": "Optional frozen BaselineResult from the actual repository run; null before baseline reproduction."
+    },
+    "plan_review_ref": {
+      "type": ["string", "null"],
+      "description": "The critique that rejected the immediately previous ExperimentPlan, present only on replanning."
+    },
+    "research_memory_ref": {
+      "type": ["string", "null"],
+      "description": "Accumulated per-component/per-round memory used to plan the current ready DAG component."
+    }
+  }
+}

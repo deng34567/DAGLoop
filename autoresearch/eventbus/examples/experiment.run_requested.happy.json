@@ -1,0 +1,5 @@
+{
+  "experiment_patch_ref": "experiment_patch://sess-123/final",
+  "verifier_spec_ref": "verifier_spec://sess-123/final",
+  "benchmark_spec_ref": "benchmark_spec://sess-123/final"
+}

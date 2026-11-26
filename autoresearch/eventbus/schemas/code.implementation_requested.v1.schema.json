@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/code.implementation_requested.v1.schema.json",
+  "title": "code.implementation_requested (v1)",
+  "description": "ResearchOrchestrator instructs CoderAgent to implement the frozen ExperimentPlan against the frozen VerifierSpec's protocol. CoderAgent itself is out of scope for this task (M9) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "experiment_plan_ref",
+    "verifier_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "experiment_plan_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ExperimentPlan object."
+    },
+    "verifier_spec_ref": {
+      "type": ["string", "null"],
+      "description": "Optional frozen VerifierSpec ref; null on the current post-baseline verifier route."
+    }
+  }
+}

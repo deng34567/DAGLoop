@@ -1,0 +1,36 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/field_trajectory_brief.schema.yaml"
+title: "FieldTrajectoryBrief"
+description: >
+  Frozen artifact produced by DeepResearchAgent's two-pass literature search
+  (AutoResearch state machine V1.10 §1, DeepResearching), summarizing the
+  field's historical trajectory. Stored as a blob in the Research Store
+  (kind="field_trajectory_brief"); only its ref is carried in the
+  literature.brief_ready event payload.
+type: object
+required:
+  - origin
+  - current_state
+  - main_method_families
+  - open_problems
+additionalProperties: false
+properties:
+  origin:
+    type: string
+    description: "How/where the field or problem originated."
+  current_state:
+    type: string
+    description: "Narrative description of the current state of the art."
+  main_method_families:
+    type: array
+    items:
+      type: string
+    description: "Names of the main families of methods used in this field."
+  benchmark_evolution:
+    type: string
+    description: "How the benchmarks/evaluation protocols used in this field have evolved over time."
+  open_problems:
+    type: array
+    items:
+      type: string
+    description: "Open problems / unresolved challenges in the field."

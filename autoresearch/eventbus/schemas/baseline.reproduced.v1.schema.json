@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/baseline.reproduced.v1.schema.json",
+  "title": "baseline.reproduced (v1)",
+  "description": "RunnerAgent has finished attempting to reproduce the baseline and frozen a BaselineResult into the Research Store (see agents/runner_agent/data-contracts/baseline_result.schema.yaml). Payload is intentionally minimal: the result is read from the Research Store by ref. RunnerAgent itself is out of scope for this task (M10) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "verdict",
+    "baseline_result_ref",
+    "benchmark_id"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["reproduced", "failed"],
+      "description": "RunnerAgent's verdict on whether the baseline was successfully reproduced."
+    },
+    "baseline_result_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen BaselineResult object."
+    },
+    "benchmark_id": {
+      "type": "string",
+      "description": "Identifier of the benchmark whose baseline was (attempted to be) reproduced, mirroring BenchmarkSpec.benchmark_id."
+    }
+  }
+}

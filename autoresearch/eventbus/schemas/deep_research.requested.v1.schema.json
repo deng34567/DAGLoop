@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/deep_research.requested.v1.schema.json",
+  "title": "deep_research.requested (v1)",
+  "description": "ResearchOrchestrator instructs DeepResearchAgent to begin literature / field-trajectory research. A method-targeted pass carries the frozen method and may carry a prior audit when closing a known evidence gap.",
+  "type": "object",
+  "required": [
+    "research_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchSpec object."
+    },
+    "method_ref": {
+      "type": "string",
+      "description": "Optional frozen Method ref for an exact targeted novelty search."
+    },
+    "novelty_audit_report_ref": {
+      "type": "string",
+      "description": "Optional frozen NoveltyAuditReport ref identifying the evidence gaps to resolve."
+    },
+    "targeted_search_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$",
+      "description": "Correlation identity for one targeted search of the frozen method."
+    }
+  },
+  "dependentRequired": {
+    "targeted_search_id": ["method_ref"]
+  }
+}

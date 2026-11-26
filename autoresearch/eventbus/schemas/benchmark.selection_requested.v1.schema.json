@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/benchmark.selection_requested.v1.schema.json",
+  "title": "benchmark.selection_requested (v1)",
+  "description": "ResearchOrchestrator instructs EvaluatorAgent to select/prepare a benchmark for the frozen ResearchSpec, grounded in the LiteratureBrief. EvaluatorAgent itself is out of scope for this task (M7) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "research_spec_ref",
+    "literature_brief_ref",
+    "spec_interpretation_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchSpec object."
+    },
+    "literature_brief_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen LiteratureBrief object."
+    },
+    "spec_interpretation_ref": {
+      "type": "string",
+      "description": "Opaque ref resolving to the literature-grounded SpecInterpretation and its frozen evaluation semantics."
+    },
+    "deliberation_report_ref": {
+      "type": ["string", "null"],
+      "description": "Optional legacy deep-deliberation report; null on the current direct method route."
+    }
+  }
+}

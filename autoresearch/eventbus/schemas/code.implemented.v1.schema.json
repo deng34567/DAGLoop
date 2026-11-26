@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/code.implemented.v1.schema.json",
+  "title": "code.implemented (v1)",
+  "description": "CoderAgent has finished implementing the ExperimentPlan and frozen an ExperimentPatch into the Research Store (see agents/coder_agent/data-contracts/experiment_patch.schema.yaml). Payload is intentionally minimal: the patch is read from the Research Store by ref. CoderAgent itself is out of scope for this task (M9) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "experiment_patch_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "experiment_patch_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ExperimentPatch object."
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/moss.intervention_requested.v1.schema.json",
+  "title": "moss.intervention_requested (v1)",
+  "description": "ResearchOrchestrator asks MOSS to intervene (e.g. a loop/counter threshold was hit) and optionally hands over a snapshot of the counters that triggered the request. MOSS Step 1 -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "reason"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "reason": {
+      "type": "string",
+      "description": "Free-form description of why MOSS's intervention is being requested (e.g. 'loop detected', 'budget exhausted')."
+    },
+    "counter_snapshot": {
+      "type": ["object", "null"],
+      "description": "Opaque snapshot of the counters/state that triggered the request, or null if not applicable."
+    },
+    "method_ref": {
+      "type": ["string", "null"],
+      "description": "Current Method including component designs and dependency/acceptance contracts; design context, not execution proof."
+    },
+    "baseline_result_ref": {
+      "type": ["string", "null"],
+      "description": "Optional frozen baseline with authoritative task and repository requirements."
+    },
+    "spec_interpretation_ref": {
+      "type": ["string", "null"],
+      "description": "Optional frozen evaluation semantics and comparison constraints."
+    },
+    "research_memory_ref": {
+      "type": ["string", "null"],
+      "description": "Optional frozen ResearchMemory evidence for MOSS diagnosis."
+    },
+    "run_record_ref": {
+      "type": ["string", "null"],
+      "description": "Optional frozen RunRecord for the failing experiment MOSS is diagnosing."
+    },
+    "baseline_attempt_ref": {
+      "type": ["string", "null"],
+      "description": "Latest baseline attempt for diagnosis, including failed attempts; not a frozen comparison baseline."
+    },
+    "agent_failure": {
+      "type": ["object", "null"],
+      "description": "Current component preparation agent.failed payload, when no new RunRecord exists. Takes precedence over an earlier run."
+    },
+    "critique_report_ref": {
+      "type": ["string", "null"],
+      "description": "Optional frozen CritiqueReport for a rejected plan or proposal MOSS is diagnosing."
+    }
+  }
+}

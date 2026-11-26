@@ -1,0 +1,10 @@
+{
+  "question_id": "q-001",
+  "question_text": "What is the primary deliverable form you expect (e.g. paper draft, code repo, benchmark report)?",
+  "options": [
+    "paper draft",
+    "code repo",
+    "benchmark report"
+  ],
+  "allow_free_text": true
+}

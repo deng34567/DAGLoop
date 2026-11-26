@@ -1,0 +1,36 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/problem_model.schema.yaml"
+title: "ProblemModel"
+description: >
+  Frozen artifact produced by ProblemModelingAgent's ModelingProblem mode
+  (AutoResearch state machine V1.10 §1): having read the frozen ResearchSpec
+  plus the LiteratureBrief and NoveltyAuditReport, ProblemModelingAgent models
+  the key problems, opportunities, risks, and verifiable paths forward. Stored
+  as a blob in the Research Store (kind="problem_model"); only its ref is
+  carried in the problem.modeled event payload.
+type: object
+required:
+  - key_problems
+  - verifiable_paths
+additionalProperties: false
+properties:
+  key_problems:
+    type: array
+    items:
+      type: string
+    description: "The core open problems identified, grounded in the ResearchSpec, LiteratureBrief, and NoveltyAuditReport."
+  opportunities:
+    type: array
+    items:
+      type: string
+    description: "Promising directions or angles this modeling surfaces. Empty if none."
+  risks:
+    type: array
+    items:
+      type: string
+    description: "Risks or failure modes that could undermine the research direction. Empty if none."
+  verifiable_paths:
+    type: array
+    items:
+      type: string
+    description: "Concrete, verifiable paths forward for testing the key problems."

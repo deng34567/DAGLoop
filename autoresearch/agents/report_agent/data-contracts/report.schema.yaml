@@ -1,0 +1,129 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/report.schema.yaml"
+title: "Report"
+description: >
+  Frozen artifact produced by ReportAgent's final honest-report mode
+  (AutoResearch state machine V1.10): having read the frozen ResearchMemory
+  (and optionally the original ResearchSpec), ReportAgent composes a summary
+  plus 8 required classification arrays -- verified findings, negative
+  results, unverified ideas, experiments not run, failed replications,
+  incomplete external data, analysis caveats, and known risks -- an honest
+  accounting of what was and was not established, plus a per-experiment
+  ledger. Stored as a blob in the Research Store (kind="report"); only its
+  ref is carried in the report.ready event payload.
+
+  Because this schema sets additionalProperties: false, the LedgerItem's
+  nullable optional field (metric_value) is declared nullable: ReportAgent
+  emits it explicitly as null when no metric value is available, rather than
+  omitting the key.
+type: object
+required:
+  - summary
+  - verified_findings
+  - negative_results
+  - unverified_ideas
+  - experiment_not_run
+  - replication_failed
+  - external_data_incomplete
+  - analysis_caveats
+  - known_risks
+  - experiment_ledger
+additionalProperties: false
+properties:
+  request_digest: {type: string}
+  result_ref: {type: string}
+  delivery_bundle_ref: {type: string}
+  report_body:
+    type: string
+    description: >
+      Optional complete human-readable Markdown report.  This is the primary
+      deliverable for theory/survey tasks; the summary and classification
+      arrays remain the machine-readable honesty ledger.
+  summary:
+    type: string
+    description: "Human-readable summary of the research outcome."
+  verified_findings:
+    type: array
+    items:
+      type: string
+    description: "Findings verified with evidence, may be empty."
+  negative_results:
+    type: array
+    items:
+      type: string
+    description: "Negative results established, may be empty."
+  unverified_ideas:
+    type: array
+    items:
+      type: string
+    description: "Ideas raised but not verified, may be empty."
+  experiment_not_run:
+    type: array
+    items:
+      type: string
+    description: "Experiments that were planned but not run, may be empty."
+  replication_failed:
+    type: array
+    items:
+      type: string
+    description: "Results whose replication failed, may be empty."
+  external_data_incomplete:
+    type: array
+    items:
+      type: string
+    description: "External data sources that were incomplete, may be empty."
+  analysis_caveats:
+    type: array
+    items:
+      type: string
+    description: "Caveats about the analysis methodology or scope, may be empty."
+  known_risks:
+    type: array
+    items:
+      type: string
+    description: "Known risks or limitations of the reported outcome, may be empty."
+  experiment_ledger:
+    type: array
+    items:
+      $ref: "#/$defs/LedgerItem"
+    description: "Per-experiment ledger entries, may be empty."
+  report_failed:
+    type: boolean
+    description: "Optional flag set when ReportAgent could not produce a complete report."
+  failure_clusters:
+    type: object
+    description: "Optional: negative_results grouped by failure mode (T8 failure clustering)."
+    additionalProperties:
+      type: array
+      items:
+        type: string
+  review:
+    type: ["object", "null"]
+    additionalProperties: false
+    description: "Optional blind-reviewer annotation of the final report (L0)."
+    properties:
+      verdict:
+        type: string
+        description: "CLEAN | FLAGGED | unreviewed."
+      findings:
+        type: array
+        items:
+          type: string
+        description: "Over-claims the blind reviewer flagged in the summary; may be empty."
+$defs:
+  LedgerItem:
+    type: object
+    additionalProperties: false
+    properties:
+      experiment_id:
+        type: string
+        description: "Identifier of the experiment this ledger entry refers to."
+      metric_value:
+        type: [number, "null"]
+        description: "The experiment's metric value, or null if none is available."
+      verdict:
+        type: string
+        description: "Verdict recorded for this experiment."
+      notes:
+        type: string
+        description: "Free-text notes for this experiment."

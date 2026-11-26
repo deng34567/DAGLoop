@@ -1,0 +1,54 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/run_record.schema.yaml"
+title: "RunRecord"
+description: >
+  Frozen artifact produced by RunnerAgent's RunningExperiment mode
+  (AutoResearch state machine V1.10): having read the frozen ExperimentPatch
+  and VerifierSpec, RunnerAgent runs the experiment and records whether it
+  succeeded. Stored as a blob in the Research Store (kind="run_record"); only
+  its ref is carried in the experiment.run_completed event payload.
+
+  Because this schema sets additionalProperties: false, the optional fields
+  below (metric_value, stderr_excerpt, seed, runtime_seconds) are declared
+  nullable: RunnerAgent emits them explicitly as null when no value is
+  available, rather than omitting the key.
+type: object
+required:
+  - succeeded
+  - exit_code
+  - stdout_excerpt
+  - environment
+additionalProperties: false
+properties:
+  experiment_id:
+    type: string
+    description: "Identifier of the experiment being run, mirroring ExperimentPlan/ExperimentPatch identifiers."
+  succeeded:
+    type: boolean
+    description: "Whether the experiment run succeeded (exited cleanly and met the verifier's protocol)."
+  exit_code:
+    type: integer
+    description: "Process exit code of the experiment run."
+  metric_value:
+    type: [number, "null"]
+    description: "The metric value observed from this run, or null if the run did not produce one (e.g. crashed before completion)."
+  stdout_excerpt:
+    type: string
+    description: "Relevant excerpt from the run's stdout log."
+  stderr_excerpt:
+    type: [string, "null"]
+    description: "Relevant excerpt from the run's stderr log, or null if none captured."
+  environment:
+    type: string
+    description: "Description of the execution environment (e.g. Python/CUDA/hardware versions) the run was performed in."
+  seed:
+    type: [string, "null"]
+    description: "Random seed(s) used for the run, or null if not seeded/applicable."
+  runtime_seconds:
+    type: [number, "null"]
+    description: "Wall-clock runtime of the run in seconds, or null if not measured."
+  artifacts:
+    type: array
+    items:
+      type: string
+    description: "Refs/paths to artifacts produced by the run (e.g. plots, logs), may be empty."

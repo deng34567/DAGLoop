@@ -1,0 +1,696 @@
+# AutoResearch 状态转移表 (V1.10 §1 各段判定 + §8 横切)
+#
+# ⚠️ 权威性声明(会议 2026-07-25 item 0):本 YAML 是【文档/参考】,不是运行时权威。
+#   真正的状态转移在 orchestrator/engine.py 的 `_on_<State>_<event>` 代码 handler +
+#   `_entry_actions` 表里。本文件目前落后于 engine.py,尤其【缺 METHOD 相位】:
+#   真实主流程(engine.py)为:
+#     ... ReinterpretingSpec --(item 4a: out_of_scope 也前进)--> ModelingProblem
+#     --> HumanIdeaCheckpoint --(item 7: 直连,已退役 CritiquingDirection)-->
+#     GeneratingMethod --> AuditingLiteratureNovelty(item 9: 新颖性+可行性)-->
+#     ConfirmingMethod --> RoutingResearchMode --> Deliberating --> SelectingBenchmark
+#     --> PreparingVerifier --> ReproducingBaseline --> (实现方法) --> RunningExperiment ...
+#   分层全图见仓库根 `docs/meetings/流程分层图_会议2026-07-25.md`。改流程以 engine.py 为准,再回写本文件。
+#
+# 状态机引擎的核心数据。转移单元字段:
+#   on_event:        触发本转移的 event
+#   guard:           可选,转移生效的额外条件
+#   counter_updates: 可选,本转移执行的计数器更新
+#   side_effects:    可选,业务状态更新
+#   threshold_check: 可选,计数器更新后检查阈值,触发不同分支(list of {if|else, next_state})
+#   next_state:      转移目标状态;"{...}" 为运行时模板
+#   next_branch:     可选,按 guard 分支(list of {if|else, next_state})
+#   dispatch_table:  可选,查表转移(MossActionMatrix / UserDecisionMatrix)
+#
+# 计数器引用:A/C/H/I/K/L 标量;B[benchmark] D[hypothesis] E[hypothesis]
+#   F[experiment] G[result] J[state] M[external_experiment] 为 Map(reset=delete_key)。
+#
+# 横切转移(agent failure / cost / human checkpoint / Suspended,V1.10 §8)对任意工作
+# 状态生效,不在每个 state 下重复展开;其目标 reason 见 user-decisions/reason-matrix.yaml。
+
+version: "v1.10"
+
+state_transitions:
+
+  # ===== 第一段:研究目标确认 + 资料理解与整理 =====
+
+  - state: ClarifyingResearchGoal
+    on_enter:
+      - "emit problem_modeling.requested"
+    transitions:
+      - on_event: requirement.clarified
+        side_effects:
+          - "store ResearchSpec in Research Store"
+        next_state: DeepResearching
+
+  - state: DeepResearching
+    on_enter:
+      - "emit deep_research.two_pass_requested(seminal + frontier)"
+    transitions:
+      - on_event: deep_research.brief_drafted
+        side_effects:
+          - "store LiteratureBrief + FieldTrajectoryBrief"
+          - "KnowledgeIndexAgent 登记到 ResearchKnowledgeIndex"
+        next_state: ReinterpretingSpec
+
+  - state: ReinterpretingSpec
+    on_enter:
+      - "emit problem_modeling.reinterpret_requested"
+    transitions:
+      # 3.3: in_scope goes straight to ModelingProblem now -- the literature-novelty audit moved to
+      # after GeneratingMethod (it audits the METHOD's novelty). See AuditingLiteratureNovelty below.
+      - on_event: spec.reinterpreted
+        guard: "in_scope == true (可建立可靠 verifier / 可执行 / 可复验)"
+        side_effects:
+          - "store SpecInterpretation + 修订版 ResearchSpec"
+        next_state: ModelingProblem
+
+      - on_event: spec.reinterpreted
+        guard: "scope_or_direction_changed == true"
+        side_effects:
+          - "set human_checkpoint_return_to = ModelingProblem"
+        next_state: HumanIdeaCheckpoint
+
+      - on_event: spec.reinterpreted
+        guard: "in_scope == false"
+        side_effects:
+          - "set awaiting_user_decision_reason = out_of_scope"
+        next_state: AwaitingUserDecision
+
+  # 3.3: this audit now runs AFTER GeneratingMethod (entered on method.generated) and judges the
+  # METHOD's novelty. Entry emits evidence.audit_requested; the EvidenceAudit->Novelty co-audit
+  # then routes a pass to the ConfirmingMethod human gate, and an evidence_insufficient verdict
+  # back to GeneratingMethod (re-derive a more novel method), bounded by counter K.
+  - state: AuditingLiteratureNovelty
+    on_enter:
+      - "emit evidence.audit_requested (carries method_ref)"
+    transitions:
+      - on_event: novelty.audited
+        guard: "payload.passed == true"
+        next_state: ConfirmingMethod
+
+      - on_event: novelty.audited
+        guard: "payload.evidence_insufficient == true"
+        counter_updates:
+          - "K ++"
+        threshold_check:
+          - if: "K >= 2"
+            counter_updates:
+              - "set current_moss_reason = literature_novelty_audit_failed"
+            next_state: MossIntervening
+          - else:
+            next_state: GeneratingMethod
+
+  # meeting① (2026-07-31): the DRAFT method from GeneratingMethod goes through a BOUNDED
+  # proposer<->critic converging debate (MOSS-gated: converged->太简单?; not converged->为什么?)
+  # BEFORE the method-targeted literature search and novelty audit. So GeneratingMethod emits
+  # method.generated -> DeliberatingMethod -> DeepResearching. Fail-open keeps the draft.
+  - state: DeliberatingMethod
+    on_enter:
+      - "emit method.deliberation_requested (carries draft method_ref + problem/lit/idea refs)"
+    transitions:
+      - on_event: method.deliberated
+        side_effects:
+          - "store refined method + method_debate_report"
+        next_state: DeepResearching
+
+  - state: ModelingProblem
+    on_enter:
+      - "emit problem_modeling.model_requested"
+    transitions:
+      - on_event: problem.modeled
+        side_effects:
+          - "store ProblemModel"
+        next_state: HumanIdeaCheckpoint
+
+  - state: HumanIdeaCheckpoint
+    on_enter:
+      - "emit human_idea.seed_requested"
+    transitions:
+      - on_event: human.idea_injected
+        side_effects:
+          - "store HumanIdeaSeed"
+        next_state: "{human_checkpoint_return_to}"
+        note: "主流程默认 return_to = CritiquingDirection;从 MOSS/AwaitingUserDecision 进入时按对应返回态"
+
+  - state: CritiquingDirection
+    on_enter:
+      - "emit critic.direction_review_requested"
+    transitions:
+      - on_event: direction.critiqued
+        guard: "payload.passed == true"
+        next_state: RoutingResearchMode
+
+      - on_event: direction.critiqued
+        guard: "payload.passed == false"
+        counter_updates:
+          - "A ++"
+        threshold_check:
+          - if: "A >= 3"
+            counter_updates:
+              - "set current_moss_reason = direction_thrashing"
+            next_state: MossIntervening
+          - else:
+            next_state: ModelingProblem
+
+  # ===== 第二段:选择研究路线 =====
+
+  - state: RoutingResearchMode
+    on_enter:
+      - "emit orchestrator.track_selection_requested"
+    transitions:
+      - on_event: track.selected
+        guard: "payload.mode == Benchmark"
+        next_state: SelectingBenchmark
+
+      - on_event: track.selected
+        guard: "payload.mode == CollectiveArena"
+        next_state: SelectingBenchmark
+
+      - on_event: track.selected
+        guard: "payload.mode == ExperimentValidation"
+        next_state: PlanningExperiment
+
+      - on_event: track.selected
+        guard: "payload.mode == IdeaTheory"
+        next_state: GeneratingHypotheses
+
+      - on_event: track.selected
+        guard: "payload.mode == PortfolioTreeSearch"
+        next_state: GeneratingHypotheses
+
+      - on_event: track.selected
+        guard: "payload.mode == LabInTheLoop"
+        next_state: GeneratingHypotheses
+
+  # ===== 第三段:Benchmark 选择与 baseline 复现 =====
+
+  - state: SelectingBenchmark
+    on_enter:
+      - "emit deep_research.benchmark_selection_requested"
+    transitions:
+      - on_event: benchmark.selected
+        side_effects:
+          - "store BenchmarkSpec"
+        # meeting 2026-07-25 #1: the pre-baseline verifier is removed -- go STRAIGHT to reproducing
+        # the baseline (no PreparingVerifier hop, no editable_region whitelist frozen before the
+        # baseline even runs). Anti-cheat stays with the trusted evaluator, not a pre-set whitelist.
+        next_state: ReproducingBaseline
+
+  - state: PreparingVerifier
+    on_enter:
+      - "emit evaluator.verifier_freeze_requested"
+    transitions:
+      - on_event: verifier.prepared
+        guard: "payload.runnable == true AND needs_baseline == true"
+        side_effects:
+          - "freeze VerifierSpec (evaluator hash / metric / split / budget / editable_region)"
+        next_state: ReproducingBaseline
+
+      - on_event: verifier.prepared
+        guard: "payload.runnable == true AND needs_baseline == false"
+        side_effects:
+          - "freeze VerifierSpec"
+        next_state: ImplementingExperiment
+
+      - on_event: verifier.prepared
+        guard: "payload.incomplete == true (verifier 不完整或不可运行,有 benchmark)"
+        counter_updates:
+          - "B[current_benchmark_id] ++ (create as 1 if missing)"
+        threshold_check:
+          - if: "B[current_benchmark_id] >= 3"
+            counter_updates:
+              - "set current_moss_reason = baseline_reproduction_thrashing"
+            next_state: MossIntervening
+          - else:
+            next_state: SelectingBenchmark
+
+      - on_event: verifier.prepared
+        guard: "payload.cannot_build_verifier == true"
+        counter_updates:
+          - "set current_moss_reason = verifier_invalid"
+        next_state: MossIntervening
+
+  - state: ReproducingBaseline
+    on_enter:
+      - "emit runner.baseline_reproduce_requested"
+    transitions:
+      - on_event: baseline.reproduced
+        guard: "payload.success == true"
+        counter_updates:
+          - "B delete key current_benchmark_id"
+        next_state: GeneratingHypotheses
+
+      - on_event: baseline.reproduced
+        guard: "payload.success == false"
+        counter_updates:
+          - "B[current_benchmark_id] ++ (create as 1 if missing)"
+        threshold_check:
+          - if: "B[current_benchmark_id] >= 3"
+            counter_updates:
+              - "set current_moss_reason = baseline_reproduction_thrashing"
+            next_state: MossIntervening
+          - else:
+            next_state: ReproducingBaseline
+
+  # ===== 第四段:假设生成与挑错 =====
+
+  - state: GeneratingHypotheses
+    on_enter:
+      - "emit hypothesis.generation_requested"
+    transitions:
+      - on_event: hypotheses.generated
+        side_effects:
+          - "write HypothesisBank"
+        next_state: CritiquingHypotheses
+
+  - state: CritiquingHypotheses
+    on_enter:
+      - "emit critic.hypothesis_review_requested"
+    transitions:
+      - on_event: hypotheses.critiqued
+        guard: "payload.any_passed == true"
+        counter_updates:
+          - "C reset to 0"
+        next_state: ManagingHypothesisPortfolio
+
+      - on_event: hypotheses.critiqued
+        guard: "payload.all_rejected == true"
+        counter_updates:
+          - "C ++"
+        threshold_check:
+          - if: "C >= 3"
+            counter_updates:
+              - "set current_moss_reason = hypothesis_stagnation"
+            next_state: MossIntervening
+          - else:
+            next_state: GeneratingHypotheses
+
+  - state: ManagingHypothesisPortfolio
+    on_enter:
+      - "emit orchestrator.portfolio_manage_requested"
+    transitions:
+      - on_event: portfolio.ready
+        guard: "payload.mode == IdeaTheory"
+        side_effects:
+          - "select current_hypothesis_id / current_branch_id"
+        next_state: DevelopingTheory
+
+      - on_event: portfolio.ready
+        guard: "payload.mode in [Benchmark, ExperimentValidation, LabInTheLoop]"
+        side_effects:
+          - "select current_hypothesis_id / current_branch_id"
+        next_state: PlanningExperiment
+
+      - on_event: portfolio.ready
+        guard: "payload.mode in [PortfolioTreeSearch, CollectiveArena] AND branch_policy == theory"
+        next_state: DevelopingTheory
+
+      - on_event: portfolio.ready
+        guard: "payload.mode in [PortfolioTreeSearch, CollectiveArena] AND branch_policy == experiment"
+        next_state: PlanningExperiment
+
+      - on_event: portfolio.too_concentrated
+        counter_updates:
+          - "L ++"
+        threshold_check:
+          - if: "L >= 2"
+            counter_updates:
+              - "set current_moss_reason = search_diversity_collapse"
+            next_state: MossIntervening
+          - else:
+            next_state: GeneratingHypotheses
+
+  # ===== 第五段 A:理论 / 想法扩展 =====
+
+  - state: DevelopingTheory
+    on_enter:
+      - "emit hypothesis.theory_develop_requested"
+    transitions:
+      - on_event: theory.drafted
+        side_effects:
+          - "store TheoryDraft"
+        next_state: ReviewingTheory
+
+  - state: ReviewingTheory
+    on_enter:
+      - "emit critic.theory_review_requested"
+    transitions:
+      - on_event: theory.reviewed
+        guard: "payload.passed == true"
+        counter_updates:
+          - "D delete key current_hypothesis_id"
+        next_state: ConsolidatingMemory
+
+      - on_event: theory.reviewed
+        guard: "payload.needs_experiment == true"
+        next_state: PlanningExperiment
+
+      - on_event: theory.reviewed
+        guard: "payload.passed == false"
+        counter_updates:
+          - "D[current_hypothesis_id] ++ (create as 1 if missing)"
+        threshold_check:
+          - if: "D[current_hypothesis_id] >= 3"
+            counter_updates:
+              - "set current_moss_reason = theory_thrashing"
+            next_state: MossIntervening
+          - else:
+            next_state: DevelopingTheory
+
+  # ===== 第五段 B:实验设计与代码实现 =====
+
+  - state: PlanningExperiment
+    on_enter:
+      - "emit experiment_planner.plan_requested"
+    transitions:
+      - on_event: experiment.planned
+        side_effects:
+          - "store ExperimentPlan"
+        next_state: ReviewingExperimentPlan
+
+  - state: ReviewingExperimentPlan
+    on_enter:
+      - "emit critic.plan_review_requested (+ evaluator)"
+    transitions:
+      - on_event: plan.reviewed
+        guard: "payload.passed == true AND compute_experiment == true AND has_verifier == true"
+        next_state: ImplementingExperiment
+
+      - on_event: plan.reviewed
+        guard: "payload.passed == true AND compute_experiment == true AND has_verifier == false"
+        next_state: PreparingVerifier
+        note: "约束 2 硬闸门:无 VerifierSpec 先冻结再实现"
+
+      - on_event: plan.reviewed
+        guard: "payload.passed == true AND external_experiment == true"
+        next_state: PreparingExternalExperiment
+
+      - on_event: plan.reviewed
+        guard: "payload.passed == false"
+        counter_updates:
+          - "E[current_hypothesis_id] ++ (create as 1 if missing)"
+        threshold_check:
+          - if: "E[current_hypothesis_id] >= 3"
+            counter_updates:
+              - "set current_moss_reason = experiment_design_thrashing"
+            next_state: MossIntervening
+          - else:
+            next_state: PlanningExperiment
+
+  - state: PreparingExternalExperiment
+    on_enter:
+      - "emit experiment_planner.external_package_requested"
+    transitions:
+      - on_event: external_package.ready
+        side_effects:
+          - "store ExternalExperimentPackage"
+        next_state: AwaitingExternalExperimentResult
+
+      - on_event: external_package.ready
+        guard: "payload.not_executable == true (缺少关键资源)"
+        side_effects:
+          - "set awaiting_user_decision_reason = external_experiment_blocked"
+        next_state: AwaitingUserDecision
+
+      - on_event: external_package.ready
+        guard: "payload.needs_rewrite == true"
+        next_state: PlanningExperiment
+
+  - state: AwaitingExternalExperimentResult
+    on_enter:
+      - "persist SessionState, 等待真实实验结果上传"
+    transitions:
+      - on_event: external_data.uploaded
+        guard: "payload.data_complete == true"
+        next_state: AnalyzingExternalData
+
+      - on_event: external_data.uploaded
+        guard: "payload.data_incomplete == true (数据缺失或 metadata 不足)"
+        side_effects:
+          - "set awaiting_user_decision_reason = external_data_incomplete"
+        next_state: AwaitingUserDecision
+
+      - on_event: external_experiment.aborted
+        side_effects:
+          - "记录 experiment_not_run 或 replication_failed"
+        next_state: ConsolidatingMemory
+
+  - state: AnalyzingExternalData
+    on_enter:
+      - "emit data_analysis.multi_trajectory_requested"
+    transitions:
+      - on_event: data.analyzed
+        guard: "payload.consensus_clear == true"
+        counter_updates:
+          - "M delete key current_external_experiment_id"
+        side_effects:
+          - "store ExternalDataAnalysisReport"
+        next_state: EvaluatingExperiment
+
+      - on_event: data.analyzed
+        guard: "payload.divergent == true"
+        counter_updates:
+          - "M[current_external_experiment_id] ++ (create as 1 if missing)"
+        threshold_check:
+          - if: "M[current_external_experiment_id] >= 2"
+            counter_updates:
+              - "set current_moss_reason = data_analysis_consensus_failed"
+            next_state: MossIntervening
+          - else:
+            next_state: AnalyzingExternalData
+
+  - state: ImplementingExperiment
+    on_enter:
+      - "emit coder.experiment_implement_requested (只在 editable_region 内改)"
+    transitions:
+      - on_event: experiment.implemented
+        side_effects:
+          - "store ExperimentPatch"
+        next_state: TestingExperimentSetup
+
+  - state: TestingExperimentSetup
+    on_enter:
+      - "emit runner.sanity_check_requested"
+    transitions:
+      - on_event: setup.tested
+        guard: "payload.passed == true"
+        counter_updates:
+          - "F delete key current_experiment_id"
+        next_state: RunningExperiment
+
+      - on_event: setup.tested
+        guard: "payload.passed == false"
+        counter_updates:
+          - "F[current_experiment_id] ++ (create as 1 if missing)"
+        threshold_check:
+          - if: "F[current_experiment_id] >= 3"
+            counter_updates:
+              - "set current_moss_reason = implementation_thrashing"
+            next_state: MossIntervening
+          - else:
+            next_state: ImplementingExperiment
+
+  - state: RunningExperiment
+    on_enter:
+      - "emit runner.experiment_run_requested"
+    transitions:
+      - on_event: experiment.completed
+        side_effects:
+          - "store RunRecord"
+        next_state: EvaluatingExperiment
+
+  - state: EvaluatingExperiment
+    on_enter:
+      - "emit evaluator.evaluate_requested"
+    transitions:
+      - on_event: experiment.evaluated
+        guard: "payload.verdict == invalid"
+        next_state: VerifyingBestResult
+
+      - on_event: experiment.evaluated
+        guard: "payload.verdict == valid_not_best"
+        next_state: VerifyingBestResult
+
+      - on_event: experiment.evaluated
+        guard: "payload.verdict == new_best"
+        next_state: VerifyingBestResult
+
+      - on_event: experiment.evaluated
+        guard: "payload.verdict == suspicious and trusted EvaluationReport reports a correctable comparison_semantics_changed flag with non-empty reasoning"
+        counter_updates:
+          - "G[current_result_id or current_experiment_id] ++ (create as 1 if missing)"
+        threshold_check:
+          - if: "G[current_result_id or current_experiment_id] >= 2"
+            counter_updates:
+              - "set current_moss_reason = result_suspicious"
+            next_state: MossIntervening
+          - else:
+            next_state: ImplementingExperiment
+
+      - on_event: experiment.evaluated
+        guard: "payload.verdict == suspicious and no correctable trusted comparison-semantic finding is available"
+        counter_updates:
+          - "set current_moss_reason = result_suspicious"
+        next_state: MossIntervening
+
+      - on_event: experiment.evaluated
+        guard: "payload.verdict == inconsistent_with_finding"
+        counter_updates:
+          - "I ++"
+        threshold_check:
+          - if: "I >= 2"
+            counter_updates:
+              - "set current_moss_reason = result_inconsistency"
+            next_state: MossIntervening
+          - else:
+            next_state: VerifyingBestResult
+
+  - state: VerifyingBestResult
+    on_enter:
+      - "emit result.verification_requested (success: verify metric binding; invalid: confirm failure cause)"
+    transitions:
+      - on_event: result.verified
+        guard: "payload.passed == true"
+        counter_updates:
+          - "G delete key current_result_id"
+        next_state: ConsolidatingMemory
+
+      - on_event: result.verified
+        guard: "payload.passed == false"
+        counter_updates:
+          - "G[current_result_id] ++ (create as 1 if missing)"
+        threshold_check:
+          - if: "G[current_result_id] >= 2"
+            counter_updates:
+              - "set current_moss_reason = result_suspicious"
+            next_state: MossIntervening
+          - else:
+            next_state: RunningExperiment
+
+  # ===== 第六段:记忆整合与研究返工 =====
+
+  - state: ConsolidatingMemory
+    on_enter:
+      - "更新 ResearchMemory + ConsolidatedInsight + CrossTaskInsightStore;产出 DivergenceSeeds"
+    transitions:
+      - on_event: memory.consolidated
+        guard: "payload.decision == continue_explore"
+        side_effects:
+          - "DivergenceSeeds 回灌 HypothesisPortfolio"
+        next_state: GeneratingHypotheses
+
+      - on_event: memory.consolidated
+        guard: "payload.decision == sufficient"
+        next_state: Reporting
+
+      - on_event: memory.consolidated
+        guard: "payload.decision == needs_experiment"
+        next_state: PlanningExperiment
+
+      - on_event: memory.consolidated
+        guard: "payload.decision == benchmark_saturated"
+        counter_updates:
+          - "set current_moss_reason = benchmark_too_narrow"
+        next_state: MossIntervening
+
+      - on_event: memory.consolidated
+        guard: "payload.decision == needs_rework"
+        next_state: ResearchRework
+
+  - state: ResearchRework
+    on_enter:
+      # 6 步入口动作,详见 V1.10 §1 第六段
+      - "H ++"
+      - threshold_check:
+          - if: "H >= 3"
+            next_state: AwaitingUserDecision
+            with_reason: research_thrashing
+      - "clear current_hypothesis_id / current_experiment_id / 未验证 result"
+      - "I reset to 0"
+      - "保留 verified finding / negative result / ResearchMemory"
+      - "MOSS 或 ProblemModelingAgent 输出 ResearchPlanDiff"
+    transitions:
+      - on_event: rework.diff_drafted
+        guard: "payload.diff_kind == reframe_problem"
+        next_state: ModelingProblem
+
+      - on_event: rework.diff_drafted
+        guard: "payload.diff_kind == reselect_benchmark"
+        next_state: SelectingBenchmark
+
+      - on_event: rework.diff_drafted
+        guard: "payload.diff_kind == add_idea"
+        next_state: GeneratingHypotheses
+
+  # ===== 元层介入 =====
+
+  - state: MossIntervening
+    on_enter:
+      - "emit moss.intervention_requested(reason=current_moss_reason, session_id, context_ref)"
+    on_exit:
+      - "clear current_moss_reason;写入 moss_interventions"
+    transitions:
+      - on_event: moss.intervention_completed
+        dispatch_table: MossActionMatrix
+        note: "按 (current_moss_reason, payload.action) 查 moss/moss-action-matrix.yaml"
+
+  # ===== 第七段:报告 =====
+
+  - state: Reporting
+    on_enter:
+      - "NoveltyAuditAgent Mode C citation/claim regression 审计(前置);emit report.generation_requested"
+    transitions:
+      - on_event: report.drafted
+        guard: "payload.success == true"
+        side_effects:
+          - "store final report + 实验账本"
+        next_state: Done
+
+      - on_event: report.permanent_failure
+        guard: "payload.has_usable_artifact == true"
+        side_effects:
+          - "set report_failed = true"
+        next_state: Done
+        note: "有可用研究产物:report_failed=true 仍转 Done"
+
+      - on_event: report.permanent_failure
+        guard: "payload.has_usable_artifact == false"
+        side_effects:
+          - "set awaiting_user_decision_reason = agent_failure"
+        next_state: AwaitingUserDecision
+        note: "无可用研究产物:升级到人"
+
+  # ===== 横切状态 =====
+
+  - state: AwaitingUserDecision
+    on_enter:
+      - "emit user_decision_requested(reason=current_reason, available_actions=...)"
+    transitions:
+      - on_event: user_action_received
+        dispatch_table: UserDecisionMatrix
+        note: "按 (current_reason, payload.action) 查 user-decisions/reason-matrix.yaml"
+
+  - state: Suspended
+    on_enter:
+      - "set previous_state = state_before_suspended;persist SessionState (含 J)"
+    on_exit:
+      - "J clear all keys;load SessionState"
+    transitions:
+      - on_event: user_action.resume
+        next_state: "{previous_state}"
+        note: "不重发已开始的外部实验任务,详见 V1.10 §8 Suspended"
+
+  # ===== 终态 =====
+
+  - state: Done
+    is_terminal: true
+    bypass_operations:
+      - operation: regenerate_report
+        target_agent: ReportAgent
+      - operation: open_new_session
+        note: "基于当前 ResearchMemory 开新一轮,不改变原 session 主状态机"
+    transitions: []
+
+  - state: Failed
+    is_terminal: true
+    transitions: []

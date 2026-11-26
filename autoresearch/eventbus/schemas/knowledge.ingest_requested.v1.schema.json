@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/knowledge.ingest_requested.v1.schema.json",
+  "title": "knowledge.ingest_requested (v1)",
+  "description": "An upstream agent (ProblemModelingAgent, DeepResearchAgent, NoveltyAuditAgent, or ResearchOrchestrator) asks KnowledgeIndexAgent to ingest one or more IndexEntryInput items into the knowledge index. Only path_or_ref and summary (plus optional tags) are supplied by the caller; type/source/produced_by_state are filled in by KnowledgeIndexAgent's core at ingest time.",
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "items": {
+      "type": "array",
+      "description": "IndexEntryInput items to ingest.",
+      "items": {
+        "type": "object",
+        "required": [
+          "path_or_ref",
+          "summary"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "path_or_ref": {
+            "type": "string",
+            "description": "Path or opaque ref identifying the artifact being indexed."
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable summary of the artifact."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional free-form tags. Defaults to empty if omitted."
+          }
+        }
+      }
+    }
+  }
+}

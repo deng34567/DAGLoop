@@ -1,0 +1,5 @@
+{
+  "agent_name": "CoderAgent",
+  "reason_classification": "policy_violation",
+  "underlying_reason": "Missing violation_type field which is required when reason_classification is policy_violation"
+}

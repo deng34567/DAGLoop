@@ -1,0 +1,153 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/research_memory.schema.yaml"
+title: "ResearchMemory"
+description: >
+  Frozen artifact produced by MemoryAgent's ConsolidatingMemory mode
+  (AutoResearch state machine V1.10): having read the frozen EvaluationReport
+  (and RunRecord, and optionally a prior ResearchMemory / VerificationReport),
+  MemoryAgent consolidates verified findings, negative results, excluded
+  hypotheses, and insights, plus divergence seeds and next steps. Stored as a
+  blob in the Research Store (kind="research_memory"); only its ref is carried
+  in the memory.consolidated event payload.
+
+  Because this schema sets additionalProperties: false, the nullable optional
+  fields below (best_metric, best_result_ref) are declared nullable:
+  MemoryAgent emits them explicitly as null when no value is available,
+  rather than omitting the key.
+type: object
+required:
+  - verified_findings
+  - negative_results
+  - consolidated_insights
+  - divergence_seeds
+additionalProperties: false
+properties:
+  method_feedback_refs:
+    type: array
+    items:
+      type: string
+  reconciliation_candidates:
+    type: array
+    items:
+      type: object
+  source_history:
+    type: array
+    items:
+      type: object
+  best_metric:
+    type: [number, "null"]
+    description: "The best metric value consolidated so far, or null if none is established yet."
+  best_result_ref:
+    type: [string, "null"]
+    description: "Opaque ref resolving to an immutable verified candidate result, or a legacy RunRecord/EvaluationReport; null if no bound result is established."
+  verified_findings:
+    type: array
+    items:
+      type: string
+    description: "Findings verified so far, may be empty."
+  negative_results:
+    type: array
+    items:
+      type: string
+    description: "Negative results consolidated so far, may be empty."
+  excluded_hypotheses:
+    type: array
+    items:
+      type: string
+    description: "Hypotheses excluded from further exploration, may be empty."
+  consolidated_insights:
+    type: array
+    items:
+      type: string
+    description: "Insights consolidated across runs so far, may be empty."
+  divergence_seeds:
+    type: array
+    items:
+      type: string
+    description: "Seeds for divergent/exploratory follow-up directions, may be empty."
+  next_steps:
+    type: array
+    items:
+      type: string
+    description: "Recommended next steps, may be empty."
+  diagnosis:
+    type: string
+    enum:
+      - execution_failure
+      - setting_issue
+      - component_expectation_failed
+      - component_execution_blocked
+      - component_accepted
+      - component_progress
+      - component_contract_retry
+      - component_combination_retry
+      - method_hypothesis_falsified
+      - method_improvement_proposed
+      - method_description_reconciliation
+      - baseline_drift
+      - valid_improvement
+      - candidate_contract_violation
+      - attempt_accounting_violation
+      - literature_novelty_exhausted
+      - baseline_reproduction_failed
+      - inconclusive
+  diagnosis_evidence:
+    type: array
+    items:
+      type: string
+  component_history:
+    type: array
+    description: >
+      Append-only, host-derived history of every consolidated component/integration attempt.
+      Large diffs and logs remain in referenced artifacts instead of being copied into memory.
+    items:
+      type: object
+      required:
+        - sequence
+        - component_id
+        - mode
+        - status
+        - attempt
+        - run_ref
+      additionalProperties: false
+      properties:
+        sequence: {type: integer, minimum: 1}
+        component_id: {type: string}
+        mode: {type: string, enum: [component, integration]}
+        plan_version: {type: integer, minimum: 1}
+        method_fingerprint: {type: string}
+        baseline_digest: {type: [string, "null"]}
+        round: {type: integer, minimum: 1}
+        role: {type: string}
+        status: {type: string}
+        attempt: {type: integer, minimum: 0}
+        operator: {type: string}
+        execution_succeeded: {type: boolean}
+        dependency_closure:
+          type: array
+          items: {type: string}
+        parent_checkpoint: {type: string}
+        parent_checkpoints:
+          type: array
+          items: {type: string}
+        checkpoint: {type: string}
+        diff_ref: {type: string}
+        selected_checkpoint: {type: string}
+        selected_diff_ref: {type: string}
+        metric:
+          type: [number, "null"]
+          description: "Task metric for this attempt; component checks remain in acceptance_result. Legacy entries may predate this separation."
+        acceptance_result: {type: object}
+        contract_passed: {type: [boolean, "null"]}
+        became_best: {type: boolean}
+        mir_verdict: {type: string}
+        verification: {type: string}
+        verification_verdict: {type: string}
+        run_ref: {type: string}
+        changes_summary: {type: string}
+        failure_reason: {type: string}
+  baseline_observations:
+    type: array
+    description: "Host-read baseline attempts, including infeasible finite observations; never imply successful reproduction."
+    items:
+      type: object

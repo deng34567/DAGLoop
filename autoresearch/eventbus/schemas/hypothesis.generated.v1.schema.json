@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/hypothesis.generated.v1.schema.json",
+  "title": "hypothesis.generated (v1)",
+  "description": "HypothesisAgent has finished generating hypotheses and frozen a HypothesisBank into the Research Store (see agents/hypothesis_agent/data-contracts/hypothesis_bank.schema.yaml). Payload is intentionally minimal: the bank is read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "hypothesis_bank_ref",
+    "count"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "hypothesis_bank_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen HypothesisBank object."
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of hypotheses in the frozen HypothesisBank."
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/knowledge.retrieve_requested.v1.schema.json",
+  "title": "knowledge.retrieve_requested (v1)",
+  "description": "An upstream agent (ProblemModelingAgent, DeepResearchAgent, NoveltyAuditAgent, CriticAgent, EvaluatorAgent, ReportAgent, or ResearchOrchestrator) asks KnowledgeIndexAgent to retrieve index entries matching a query. KnowledgeIndexAgent replies with knowledge.retrieve_result.",
+  "type": "object",
+  "required": [
+    "query"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Free-text query to match against indexed entries."
+    },
+    "top_k": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum number of entries to return. Optional; backend applies its own default if omitted."
+    }
+  }
+}

@@ -1,0 +1,34 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+.gh-*/
+agent_config/
+
+# Python environments, caches, and build output
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Runtime and generated research artifacts
+workspace/
+gen_written/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*-src/
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.swp
+.DS_Store
+node_modules/

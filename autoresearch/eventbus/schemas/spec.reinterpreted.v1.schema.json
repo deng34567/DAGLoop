@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/spec.reinterpreted.v1.schema.json",
+  "title": "spec.reinterpreted (v1)",
+  "description": "ProblemModelingAgent's ReinterpretingSpec output (state machine V1.10 §1): having read the frozen ResearchSpec plus the literature / field-trajectory briefs, it has frozen a SpecInterpretation into the Research Store (see agents/problem_modeling_agent/data-contracts/spec_interpretation.schema.yaml) and, if the scope changed, a revised ResearchSpec. Payload is intentionally minimal: both artifacts are read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "disposition",
+    "spec_interpretation_ref",
+    "revised_research_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "disposition": {
+      "type": "string",
+      "enum": ["in_scope", "scope_changed", "out_of_scope"],
+      "description": "ProblemModelingAgent's verdict on the original ResearchSpec after reinterpretation, mirroring SpecInterpretation.disposition."
+    },
+    "spec_interpretation_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen SpecInterpretation object."
+    },
+    "revised_research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the (possibly unchanged) ResearchSpec object."
+    }
+  }
+}

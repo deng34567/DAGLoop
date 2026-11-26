@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/experiment.plan_reviewed.v1.schema.json",
+  "title": "experiment.plan_reviewed (v1)",
+  "description": "CriticAgent has finished reviewing the frozen ExperimentPlan against the frozen VerifierSpec (following experiment.review_requested) and frozen a CritiqueReport (target=experiment_plan) into the Research Store (see agents/critic_agent/data-contracts/critique_report.schema.yaml). CriticAgent itself is out of scope for this task (M8) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "verdict",
+    "review_report_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["pass", "fail"],
+      "description": "CriticAgent's verdict on the reviewed ExperimentPlan."
+    },
+    "review_report_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen CritiqueReport object."
+    }
+  }
+}

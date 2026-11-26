@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/verifier.spec_frozen.v1.schema.json",
+  "title": "verifier.spec_frozen (v1)",
+  "description": "EvaluatorAgent has finished preparing the verifier-first VerifierSpec and frozen it into the Research Store (see agents/evaluator_agent/data-contracts/verifier_spec.schema.yaml). Payload is intentionally minimal: the spec is read from the Research Store by ref. EvaluatorAgent itself is out of scope for this task (M7) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "verifier_spec_ref",
+    "verdict"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "verifier_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen VerifierSpec object."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["ok", "incomplete", "invalid"],
+      "description": "EvaluatorAgent's verdict on the prepared VerifierSpec: fully specified (ok), missing pieces (incomplete), or unusable (invalid)."
+    }
+  }
+}

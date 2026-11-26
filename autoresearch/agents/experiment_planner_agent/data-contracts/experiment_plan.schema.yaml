@@ -1,0 +1,66 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/experiment_plan.schema.yaml"
+title: "ExperimentPlan"
+description: >
+  Frozen artifact produced by ExperimentPlannerAgent (AutoResearch state
+  machine V1.10): a declarative, no-code plan for the experiment that will
+  test the selected hypothesis, grounded in the frozen HypothesisBank,
+  VerifierSpec, BenchmarkSpec, and ResearchSpec. Stored as a blob in the
+  Research Store (kind="experiment_plan"); only its ref is carried in the
+  experiment.plan_ready event payload. The `changes[]` items are
+  additionalProperties:false so the plan stays declarative (file +
+  description only) -- no `code_diff`/`code` field is allowed here; the
+  actual implementation is CoderAgent's job downstream.
+"$defs":
+  Change:
+    type: object
+    required:
+      - file
+      - description
+    additionalProperties: false
+    properties:
+      file:
+        type: string
+        description: "Path to the file this change targets."
+      description:
+        type: string
+        description: "Declarative description of what should change in this file, e.g. for CoderAgent to implement."
+type: object
+required:
+  - hypothesis_id
+  - change_summary
+  - changes
+  - expected_outcome
+additionalProperties: false
+properties:
+  hypothesis_id:
+    type: string
+    description: "ID (within the HypothesisBank) of the hypothesis this experiment plan tests."
+  change_summary:
+    type: string
+    description: "High-level summary of the proposed change(s)."
+  changes:
+    type: array
+    items:
+      "$ref": "#/$defs/Change"
+    description: "Declarative list of per-file changes; see the Change $def for why these are additionalProperties:false."
+  ablations:
+    type: array
+    items:
+      type: string
+    description: "Optional list of ablation variants to run alongside the main experiment."
+  expected_outcome:
+    type: string
+    description: "What ExperimentPlannerAgent expects to observe if the hypothesis holds."
+  resource_budget:
+    type: string
+    description: "Optional resource budget for running the experiment (e.g. hardware, wall-clock)."
+  success_criteria:
+    type: string
+    description: "Optional concrete, measurable criteria for judging success against the BenchmarkSpec/VerifierSpec."
+  task_class:
+    type: string
+    description: "Optional dedicated task class routing the run down a specialized path (e.g. 'mc_variance_reduction' -> MonteCarloExperimentRunner). Absent by default: old plans are unaffected."
+  problem_ref:
+    type: string
+    description: "Optional reference to a concrete problem instance for the task_class (e.g. the MC integrand/problem metadata). Absent by default."

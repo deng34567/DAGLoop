@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/user.decision_provided.v1.schema.json",
+  "title": "user.decision_provided (v1)",
+  "description": "The human's decision at a LabInTheLoop checkpoint (e.g. a data-analysis divergence review). Emitted with envelope.emitter == 'Human'.",
+  "type": "object",
+  "required": [
+    "decision"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "decision": {
+      "type": "string",
+      "description": "Free-form human decision text."
+    }
+  }
+}

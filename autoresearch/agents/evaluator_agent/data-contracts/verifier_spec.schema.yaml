@@ -1,0 +1,63 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/verifier_spec.schema.yaml"
+title: "VerifierSpec"
+description: >
+  Frozen, verifier-first artifact produced by EvaluatorAgent's verifier
+  preparation pass (AutoResearch state machine V1.10): having read the frozen
+  BenchmarkSpec and ResearchSpec, EvaluatorAgent fixes the evaluation
+  protocol (data split, run budget, seed policy, editable/forbidden regions)
+  BEFORE any candidate solution is produced, so the verifier cannot be gamed
+  after the fact. Stored as a blob in the Research Store
+  (kind="verifier_spec"); only its ref is carried in the verifier.spec_frozen
+  event payload.
+"$defs":
+  DataSplit:
+    type: object
+    required:
+      - in_loop
+      - held_out
+    additionalProperties: false
+    properties:
+      in_loop:
+        type: string
+        description: "Identifier/description of the data split used during in-loop iteration."
+      held_out:
+        type: string
+        description: "Identifier/description of the held-out data split used for final verification, never seen during in-loop iteration."
+type: object
+required:
+  - evaluator_hash
+  - metric
+  - data_split
+  - editable_region
+  - forbidden_files
+additionalProperties: false
+properties:
+  evaluator_hash:
+    type: string
+    description: "Hash of the evaluator/harness code, frozen at spec time so later drift is detectable."
+  metric:
+    type: string
+    description: "Name of the metric this verifier evaluates, mirroring BenchmarkSpec.metric."
+  data_split:
+    "$ref": "#/$defs/DataSplit"
+    description: "The in-loop vs. held-out data split, fixed before any candidate solution exists."
+  run_budget:
+    type: string
+    description: "Resource/time budget allowed per verification run (e.g. '10 runs, 1h wall-clock'). Free-form."
+  seed_policy:
+    type: string
+    description: "How random seeds are fixed/varied across runs, to keep results reproducible and non-gameable."
+  editable_region:
+    type: array
+    items:
+      type: string
+    description: "Files/paths the candidate solution is allowed to modify."
+  forbidden_files:
+    type: array
+    items:
+      type: string
+    description: "Files/paths the candidate solution must not modify. Empty if none beyond editable_region's implicit boundary."
+  result_parse_schema:
+    type: object
+    description: "JSON Schema (as an object) describing how to parse the verifier's raw output into a result. Opaque to this schema; free-form object."

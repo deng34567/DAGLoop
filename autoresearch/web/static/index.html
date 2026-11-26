@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>VibeResearch 实时观测</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font:13px/1.55 -apple-system,Segoe UI,Roboto,"Microsoft YaHei",sans-serif;
+         background:#0f1117; color:#dbe1ea; }
+  header { padding:10px 16px; background:#161a23; border-bottom:1px solid #232838;
+           display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:15px; margin:0; color:#9db4ff; }
+  input[type=text] { background:#0f1117; border:1px solid #2a3040; color:#dbe1ea;
+           padding:6px 9px; border-radius:6px; min-width:320px; }
+  button { background:#2a5bd7; color:#fff; border:0; padding:6px 12px; border-radius:6px; cursor:pointer; }
+  button.ghost { background:#232838; color:#9db4ff; }
+  button:disabled { opacity:.4; cursor:default; }
+  .composer textarea:disabled { opacity:.45; cursor:not-allowed; background:#0a0c11; }
+  #main { display:grid; grid-template-columns: 220px 1fr 380px; height:calc(100vh - 52px); }
+  .col { overflow:auto; padding:12px; min-height:0; }
+  #states { border-right:1px solid #232838; }
+  #center { border-right:1px solid #232838; display:flex; flex-direction:column; padding:0; overflow:hidden; }
+  .stgroup { margin:12px 0 3px; font-size:10.5px; letter-spacing:.6px; text-transform:uppercase;
+             color:#5f6b82; font-weight:600; }
+  .stgroup:first-child { margin-top:2px; }
+  .st { padding:3px 8px 3px 12px; border-radius:5px; margin:1px 0; color:#7c869b; font-size:12px;
+        border-left:2px solid transparent; }
+  .st.cur { background:#2a5bd7; color:#fff; font-weight:600; border-left-color:#7ee0a0; }
+  .st.visited { color:#9fb0cf; border-left-color:#2f3a52; }
+  .cbar { padding:10px 14px; border-bottom:1px solid #232838; display:flex; align-items:center; gap:10px; }
+  .cur-state { font-size:18px; font-weight:700; color:#7ee0a0; }
+  .badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; background:#232838; color:#9db4ff; }
+  .badge.moss { background:#3a2c17; color:#ffb454; }
+  #chat { flex:1; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .bubble { max-width:82%; padding:9px 12px; border-radius:10px; white-space:pre-wrap; word-break:break-word; }
+  .bubble.q { background:#1c2231; border:1px solid #2a3450; align-self:flex-start; }
+  .bubble.a { background:#223a2a; border:1px solid #2f5a3c; align-self:flex-end; }
+  .bubble.sys { background:#2a2233; border:1px solid #4a3560; align-self:center; text-align:center; font-size:12px; }
+  .bubble .opts { margin-top:8px; display:flex; flex-wrap:wrap; gap:7px; }
+  .bubble .opts button { background:#243056; color:#cdd9ff; border:1px solid #35508f;
+           font-size:12.5px; padding:6px 11px; border-radius:8px; }
+  .bubble .opts button:hover { background:#2f4a8f; }
+  .composer { border-top:1px solid #232838; padding:10px 14px; display:flex; gap:8px; }
+  .composer textarea { flex:1; background:#0b0d13; border:1px solid #2a3040; color:#dbe1ea;
+           border-radius:8px; padding:8px; resize:none; height:44px; font:inherit; }
+  #evs { font-family:ui-monospace,Menlo,monospace; font-size:12px; }
+  .ev { padding:2px 0; border-bottom:1px solid #1a1f2b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ev .em { color:#9db4ff; } .ev .ty { color:#c9d3e6; } .ev .tt { color:#5f6b82; }
+  .ev.fail { color:#ff6b6b; } .ev.moss { color:#ffb454; }
+  #right h3 { margin:10px 0 6px; font-size:13px; color:#9db4ff; }
+  .arts a { color:#7ee0a0; cursor:pointer; display:inline-block; padding:2px 8px 2px 0; }
+  pre { background:#0b0d13; border:1px solid #232838; border-radius:6px; padding:8px;
+        white-space:pre-wrap; word-break:break-word; max-height:32vh; overflow:auto; font-size:12px; }
+  .muted { color:#5f6b82; }
+</style>
+</head>
+<body>
+<header>
+  <h1 data-i18n="title">VibeResearch 实时观测</h1>
+  <input id="topic" type="text" data-i18n-ph="topic_ph" placeholder="研究主题,例如: speed up a small CPU matrix multiply">
+  <label class="muted" style="display:flex;align-items:center;gap:5px;max-width:420px">
+    <input id="allowDownloads" type="checkbox" checked>
+    <span data-i18n="allow_downloads">允许从仓库声明或官方来源下载任务必需的依赖、数据和模型（优先复用缓存）</span>
+  </label>
+  <button id="startBtn" data-i18n="start">开始</button>
+  <button id="homeBtn" class="ghost" onclick="showHome()" data-i18n="home">🏠 主页</button>
+  <select id="langSel" class="ghost" title="Language / 语言" onchange="setLang(this.value)">
+    <option value="zh-CN">简体中文</option>
+    <option value="zh-TW">繁體中文</option>
+    <option value="en">English</option>
+  </select>
+  <span id="meta" class="muted"></span>
+  <span id="authbar" class="muted" style="display:none;margin-left:auto"></span>
+</header>
+<div id="home" style="padding:16px 20px">
+  <h2 style="margin:6px 0 12px" data-i18n="home_h2">研究会话</h2>
+  <div class="muted" style="margin-bottom:10px" data-i18n="home_hint">在上方输入研究主题后点「开始」新建;或点下面某个会话进入查看。</div>
+  <div id="sessionList" class="muted" data-i18n="loading">加载中…</div>
+</div>
+<div id="main" style="display:none">
+  <div id="states" class="col"></div>
+  <div id="center">
+    <div class="cbar">
+      <span class="cur-state" id="curState" data-i18n="not_started">未开始</span>
+      <span class="badge moss" id="mossBadge" style="display:none"></span>
+    </div>
+    <div id="chat"></div>
+    <div class="composer">
+      <textarea id="composer" data-i18n-ph="composer_ph" placeholder="在此输入回答 / 想法(Enter 发送,Shift+Enter 换行)…"></textarea>
+      <button id="sendBtn" data-i18n="send">发送</button>
+    </div>
+  </div>
+  <div id="right" class="col">
+    <h3 data-i18n="events">事件流</h3>
+    <div id="evs"></div>
+    <h3 data-i18n="artifacts">产物</h3>
+    <div class="arts" id="arts"><span class="muted" data-i18n="none">暂无</span></div>
+    <div id="deliverable" style="display:none;margin:6px 0"></div>
+    <pre id="art" data-i18n="click_art">点上方产物查看</pre>
+  </div>
+</div>
+<script>
+// ---- i18n: page language (simplified/traditional Chinese, English) -----------
+const LANG = {
+ "zh-CN": {title:"VibeResearch 实时观测", topic_ph:"研究主题,例如: 某启发式能否在合成实例上胜过某基线?",
+   start:"开始", allow_downloads:"允许从仓库声明或官方来源下载任务必需的依赖、数据和模型（优先复用缓存）", home:"🏠 主页", home_h2:"研究会话",
+   home_hint:"在上方输入研究主题后点「开始」新建;或点下面某个会话进入查看。",
+   loading:"加载中…", not_started:"未开始",
+   composer_ph:"在此输入回答 / 想法(Enter 发送,Shift+Enter 换行)…",
+   composer_locked:"⏳ 系统正在处理中,当前无需操作(可点右上 🏠 主页 返回)",
+   send:"发送", events:"事件流", artifacts:"产物", none:"暂无", click_art:"点上方产物查看",
+   done:"✅ 已到 Done(终态)", report_title:"📄 最终研究报告", no_report:"这个会话没有最终报告。",
+   verified:"✅ 已验证的发现", negative:"➖ 负面结果", caveats:"⚠️ 分析局限", risks:"⚠️ 已知风险",
+   notrun:"🔬 未做(未来工作)", ledger:"📋 实验台账",
+   review_plan_title:"🔬 研究方案审阅(批准后才会真跑实验)", rp_task:"任务", rp_baseline:"基线",
+   rp_method:"方法接口", rp_metric:"指标", rp_success:"成功判据", rp_instances:"实例生成",
+   rp_hint:"请审阅上面这份具体实验设计:基线是否可战胜(不是最优解)?方向对不对?没问题就批准运行,否则打回重设计。",
+   rp_approve:"✅ 批准并运行", rp_redesign:"↩ 打回重设计",
+   _outdir:""},
+ "zh-TW": {title:"VibeResearch 即時觀測", topic_ph:"研究主題,例如: 某啟發式能否在合成實例上勝過某基線?",
+   start:"開始", allow_downloads:"允許從儲存庫聲明或官方來源下載任務必需的依賴、資料和模型（優先重用快取）", home:"🏠 主頁", home_h2:"研究會話",
+   home_hint:"在上方輸入研究主題後點「開始」新建;或點下面某個會話進入查看。",
+   loading:"載入中…", not_started:"未開始",
+   composer_ph:"在此輸入回答 / 想法(Enter 傳送,Shift+Enter 換行)…",
+   composer_locked:"⏳ 系統正在處理中,目前無需操作(可點右上 🏠 主頁 返回)",
+   send:"傳送", events:"事件流", artifacts:"產物", none:"暫無", click_art:"點上方產物查看",
+   done:"✅ 已到 Done(終態)", report_title:"📄 最終研究報告", no_report:"這個會話沒有最終報告。",
+   verified:"✅ 已驗證的發現", negative:"➖ 負面結果", caveats:"⚠️ 分析侷限", risks:"⚠️ 已知風險",
+   notrun:"🔬 未做(未來工作)", ledger:"📋 實驗台賬",
+   review_plan_title:"🔬 研究方案審閱(批准後才會真跑實驗)", rp_task:"任務", rp_baseline:"基線",
+   rp_method:"方法介面", rp_metric:"指標", rp_success:"成功判據", rp_instances:"實例生成",
+   rp_hint:"請審閱上面這份具體實驗設計:基線是否可戰勝(不是最優解)?方向對不對?沒問題就批准執行,否則打回重設計。",
+   rp_approve:"✅ 批准並執行", rp_redesign:"↩ 打回重設計",
+   _outdir:"請用繁體中文回答本次研究所有面向使用者的輸出(包括澄清問題與最終報告)。"},
+ "en": {title:"VibeResearch Live", topic_ph:"Research topic, e.g. can a heuristic beat some baseline on synthetic instances?",
+   start:"Start", allow_downloads:"Allow required dependencies, data, and models from repository-declared or official sources (reuse caches first)", home:"🏠 Home", home_h2:"Research sessions",
+   home_hint:'Enter a topic above and click "Start"; or click a session below to view it.',
+   loading:"Loading…", not_started:"Not started",
+   composer_ph:"Type your answer / idea here (Enter to send, Shift+Enter for newline)…",
+   composer_locked:"⏳ System is working — no action needed right now (use 🏠 Home, top-right, to go back)",
+   send:"Send", events:"Events", artifacts:"Artifacts", none:"none", click_art:"Click an artifact above to view",
+   done:"✅ Reached Done (terminal)", report_title:"📄 Final research report", no_report:"This session has no final report.",
+   verified:"✅ Verified findings", negative:"➖ Negative results", caveats:"⚠️ Caveats", risks:"⚠️ Known risks",
+   notrun:"🔬 Not run (future work)", ledger:"📋 Experiment ledger",
+   review_plan_title:"🔬 Review the research plan (approve to run the experiment)", rp_task:"Task", rp_baseline:"Baseline",
+   rp_method:"Method interface", rp_metric:"Metric", rp_success:"Success criterion", rp_instances:"Instances",
+   rp_hint:"Review the concrete experiment design above: is the baseline beatable (not the optimum)? Is the direction right? Approve to run, or send it back to redesign.",
+   rp_approve:"✅ Approve & run", rp_redesign:"↩ Send back for redesign",
+   _outdir:"Please produce ALL user-facing output for this research (clarification questions and the final report) in English."},
+};
+let _lang = localStorage.getItem("ar_lang") || "zh-CN";
+function t(k){ return (LANG[_lang]&&LANG[_lang][k]!=null) ? LANG[_lang][k] : (LANG["zh-CN"][k]!=null?LANG["zh-CN"][k]:k); }
+function applyLang(){
+  document.documentElement.lang=_lang;
+  document.querySelectorAll("[data-i18n]").forEach(el=>{ const v=t(el.getAttribute("data-i18n")); if(v) el.textContent=v; });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el=>{ const v=t(el.getAttribute("data-i18n-ph")); if(v) el.setAttribute("placeholder",v); });
+  const s=document.getElementById("langSel"); if(s) s.value=_lang;
+}
+function setLang(l){ _lang=l; localStorage.setItem("ar_lang",l); applyLang(); }
+
+// Left sidebar = the state machine's ACTIVE states, grouped by layer, in flow order.
+// Aligned to the 2026-07-29 flow redesign: retired states are NO LONGER shown --
+//   - CritiquingDirection (retired: human confirms the direction once, no machine re-critique)
+//   - Deliberating / 深思 (retired: confirmed method flows straight into the experiment)
+//   - PreparingVerifier (retired: no pre-baseline editable-boundary gate)
+//   - the hypothesis line (GeneratingHypotheses/CritiquingHypotheses/ManagingHypothesisPortfolio),
+//     theory branch (DevelopingTheory/ReviewingTheory) and external-experiment branch are
+//     off the main path (only lab_in_the_loop / external modes), so they are hidden here.
+// GROUPS carries the layer labels; STATES is the flat ordered list the renderer walks.
+const GROUPS = [
+ ["0 · 澄清 + 调研 + 表述建模", ["ClarifyingResearchGoal","DeepResearching","ReinterpretingSpec","ModelingProblem"]],
+ ["A · 确认方向", ["HumanIdeaCheckpoint"]],
+ ["A′ · 方法", ["GeneratingMethod","AuditingLiteratureNovelty","ConfirmingMethod","RevisingMethod"]],
+ ["实验", ["RoutingResearchMode","SelectingBenchmark","ReproducingBaseline","PlanningExperiment",
+   "ReviewingExperimentPlan","ImplementingExperiment","EvaluatingExperiment","VerifyingBestResult",
+   "ConsolidatingMemory","Reporting","Done"]],
+ ["横切", ["MossIntervening","AwaitingUserDecision","Suspended","Failed"]],
+];
+const STATES = GROUPS.flatMap(g => g[1]);
+// States where the flow WAITS for a human -> the composer/send is unlocked here (and only here).
+// Mirrors server.py's human-wait set. ClarifyingResearchGoal is gated by pending_question instead.
+const CHECKPOINT_STATES = new Set(["HumanIdeaCheckpoint","ConfirmingMethod","AwaitingUserDecision",
+ "ReviewingExperimentPlan","AwaitingExternalExperimentResult","Suspended"]);
+let visited=new Set(), cur=null, sid=null, curQ=null, lastPrompt=null, answeredQids=new Set();
+let _mode="home";  // "home" | "live" (drive/watch active session) | "past" (read-only history)
+
+function renderStates(){
+  document.getElementById("states").innerHTML = GROUPS.map(([label, states])=>{
+    const items = states.map(s=>{
+      let c="st"; if(s===cur)c+=" cur"; else if(visited.has(s))c+=" visited";
+      return `<div class="${c}">${s}</div>`;
+    }).join("");
+    return `<div class="stgroup">${label}</div>${items}`;
+  }).join("");
+}
+// Lock/unlock the composer + send button. Outside a human checkpoint the system is
+// working, so nothing is clickable here; 🏠 主页 (homeBtn) is never gated and always works.
+function setInteractive(on){
+  const c=document.getElementById("composer"), b=document.getElementById("sendBtn");
+  if(!c||!b) return;
+  c.disabled=!on; b.disabled=!on;
+  c.placeholder = on ? t("composer_ph") : t("composer_locked");
+}
+function bubble(kind, html){
+  const d=document.createElement("div"); d.className="bubble "+kind; d.innerHTML=html;
+  const chat=document.getElementById("chat"); chat.appendChild(d); chat.scrollTop=chat.scrollHeight;
+  return d;
+}
+function addEv(ev){
+  if(_mode!=="live") return;   // ignore live SSE while on home / a read-only past session
+  const el=document.getElementById("evs");
+  let c="ev"; if(ev.event_type==="agent.failed")c+=" fail"; else if(ev.event_type.indexOf("moss")>=0)c+=" moss";
+  const d=document.createElement("div"); d.className=c;
+  let ex=""; if(ev.event_type==="agent.failed") ex=" — "+(ev.payload.underlying_reason||"").slice(0,80);
+  d.innerHTML=`<span class="tt">[${escapeHtml(ev.t)}s]</span> <span class="em">${escapeHtml(ev.emitter)}</span> <span class="ty">${escapeHtml(ev.event_type)}</span>${escapeHtml(ex)}`;
+  el.appendChild(d); el.scrollTop=el.scrollHeight;
+  // clarification question -> a chat bubble (dedup by question_id)
+  if(ev.event_type==="mc.experiment_started"){ bubble("sys","▶ <b>蒙特卡洛实验开始</b>(mc_variance_reduction):容器内 agent 写方差缩减法 → 可信评估器算真值"); }
+  else if(ev.event_type==="mc.baseline_done"){ const p=ev.payload;
+    bubble("sys",`基线朴素 MC:rmse_baseline=<b>${p.rmse_baseline!=null?(+p.rmse_baseline).toExponential(3):"?"}</b> (ratio ${p.baseline_ratio!=null?(+p.baseline_ratio).toFixed(2):"?"})`); }
+  else if(ev.event_type==="mc.experiment_done"){ const p=ev.payload; const ac=p.anti_cheat||{};
+    bubble("q",`<b>agent 写的 method.py</b>(真实 Kimi):<pre>${escapeHtml(p.code||"")}</pre>`);
+    const flags=[]; if(ac.over_budget)flags.push("⚠️超预算"); if(ac.hardcoded_suspected)flags.push("⚠️疑似写死"); if(ac.tamper_detected)flags.push("⚠️改可信文件");
+    bubble("a",`<b>可信评估结果</b>:proposed_rmse=<b>${p.experiment_rmse!=null?(+p.experiment_rmse).toExponential(3):"?"}</b> vs 基线 ${p.baseline_rmse!=null?(+p.baseline_rmse).toExponential(3):"?"} → <b>RMSE 缩减比 ${p.ratio!=null?(+p.ratio).toFixed(2):"?"}×</b>${p.reproduce_ratio!=null?` · 复现 ${(+p.reproduce_ratio).toFixed(2)}×`:""} · agent=${escapeHtml(p.agent_status||"?")} · 反作弊:${flags.length?flags.join(" "):"无异常信号(尽力检测,非绝对保证)"}`);
+    const vmap={pass:"✅通过",fail:"❌未通过",inconclusive:"⚠️存疑"}; const vlabel=vmap[p.verdict]||escapeHtml(p.verdict||"?");
+    bubble("sys",`<b>验收</b>(确定性判决,诚实展示,非绝对保证):${vlabel}${p.reasons&&p.reasons.length?" — "+escapeHtml(p.reasons.join("; ")):""}`); }
+  else if(ev.event_type==="mc.experiment_failed"){ bubble("sys",`⚠️ 蒙特卡洛实验失败:${escapeHtml(ev.payload.error||"")}`); }
+  // ---- general honest experiment (gen.*) ----
+  else if(ev.event_type==="gen.experiment_started"){ bubble("sys",`▶ <b>通用诚实实验开始</b>:${escapeHtml((ev.payload&&ev.payload.question)||"")}`); }
+  else if(ev.event_type==="gen.design_ready"){ const d=(ev.payload&&ev.payload.design)||{};
+    bubble("sys",`<b>实验设计</b>(LLM):任务=${escapeHtml(d.task||"?")} · 基线=${escapeHtml(d.baseline||"?")} · 指标=${escapeHtml(d.metric||"?")}`); }
+  else if(ev.event_type==="gen.harness_ready"){ bubble("q",`<b>标尺 harness.py</b>(AI 现写):<pre>${escapeHtml((ev.payload&&ev.payload.harness)||"")}</pre>`); }
+  else if(ev.event_type==="gen.method_ready"){ bubble("q",`<b>方法 method.py</b>(隔离容器 AI 现写):<pre>${escapeHtml((ev.payload&&ev.payload.method)||"")}</pre>`); }
+  else if(ev.event_type==="gen.run_done"){ const p=(ev.payload&&ev.payload.primary)||{}, r=(ev.payload&&ev.payload.reproduce)||{};
+    bubble("a",`<b>真跑结果</b>:主跑(seed ${escapeHtml(p.seed)}) 基线=<b>${escapeHtml(p.baseline_metric)}</b> vs 方法=<b>${escapeHtml(p.method_metric)}</b> (valid=${escapeHtml(p.valid)}) · 复现(seed ${escapeHtml(r.seed)}) 基线=${escapeHtml(r.baseline_metric)} vs 方法=${escapeHtml(r.method_metric)} · 运行期隔离(结构性)=${escapeHtml(p.isolated&&r.isolated)}(可信编排器删 harness.py+隔离跑 method;非文本猜测)`); }
+  else if(ev.event_type==="gen.verdict"){ const v=(ev.payload&&ev.payload.verdict)||{};
+    const vmap={pass:"✅通过",fail:"❌未通过",inconclusive:"⚠️存疑"}; const vlabel=vmap[v.verdict]||escapeHtml(v.verdict||"?");
+    bubble("sys",`<b>验收</b>(确定性判决,诚实展示,非绝对保证):${vlabel}${v.reasons&&v.reasons.length?" — "+escapeHtml(v.reasons.join("; ")):""}`);
+    bubble("sys","<span class=muted>运行期隔离已结构性强制(method 碰不到标尺文件);残余:harness 若把真值藏进 /workspace 其它文件尚未封堵,需完整沙箱(P2)。</span>");
+    if(ev.payload&&ev.payload.report){ bubble("sys",`<pre>${escapeHtml(ev.payload.report)}</pre>`); } }
+  else if(ev.event_type==="gen.experiment_failed"){ bubble("sys",`⚠️ 通用诚实实验失败:${escapeHtml((ev.payload&&ev.payload.error)||"")}`); }
+  // NOTE: clarification questions are NOT rendered from the SSE feed anymore. On refresh
+  // the feed replays ALL history, which piled up already-answered questions as if active.
+  // The active question is now driven SOLELY by state polling (s.pending_question), which
+  // the server computes as the latest UNANSWERED question -> refresh shows a clean view.
+}
+// Render a clarification question as a bubble + arm the composer (dedup by qid).
+// Driven by BOTH the SSE feed AND state polling, so the question still shows even
+// if SSE is buffered/blocked by a tunnel/proxy.
+function showQuestion(q){
+  if(!q || !q.question_id) return;
+  if(answeredQids.has(q.question_id)) return;           // already answered -> never re-show
+  if(curQ && curQ.question_id===q.question_id) return;  // already shown
+  curQ=q;
+  const opts=(q.options||[]).map((o,i)=>`<button onclick="pickOpt(${i})">${escapeHtml(o)}</button>`).join("");
+  const hint = opts ? `<div class="opts">${opts}</div><div class="muted" style="margin-top:6px">▶ 点选一个,或在下方输入框自定义回答</div>` : "";
+  bubble("q", `<b>需要你回答:</b><br>${escapeHtml(q.question_text||"")}${hint}`);
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function inlineArg(s){ return escapeHtml(JSON.stringify(String(s))); }
+function pickOpt(i){ if(curQ && curQ.options && curQ.options[i]!=null){ fillAndSend(curQ.options[i]); } }
+async function refreshState(){
+  if(_mode!=="live") return;   // only drive/watch the active session in live mode
+  let s; try{ s=await (await fetch("/api/state"+(sid?"?sid="+encodeURIComponent(sid):""))).json(); }catch(e){ return; }
+  if(!s || !s.session_id) return;                 // no active session on the server yet
+  if(sid!==s.session_id){                          // adopt / reconnect to the running session
+    sid=s.session_id;
+    document.getElementById("meta").textContent="session="+sid.slice(0,8)+" · 已连接(进度已恢复)";
+    const sb=document.getElementById("startBtn"); if(sb) sb.disabled=false;
+    connectSSE();
+  }
+  cur=s.current_state;
+  // Active clarify question = ONLY the server's current unanswered one (single source of
+  // truth). No pending question -> clear the composer arming. Works across all states and
+  // survives refresh (no SSE-history pile-up).
+  if(s.pending_question) showQuestion(s.pending_question);
+  else curQ=null;
+  // Gate ALL interaction on being at a human checkpoint: unlock the composer/send only when
+  // there's a pending question or the state is a human-wait state; otherwise lock them so the
+  // user can't poke a busy system. 🏠 主页 is never gated.
+  setInteractive(!!s.pending_question || CHECKPOINT_STATES.has(cur));
+  // While the P1 experiment runs inline in Docker, the committed state still
+  // reads ImplementingExperiment (~20 min) — show it's running, not stuck.
+  document.getElementById("curState").textContent =
+    (s.experiment_running ? "RunningExperiment · 🐳 实验运行中(Docker,数分钟)" : (cur||"—"));
+  const mb=document.getElementById("mossBadge");
+  if(s.current_moss_reason){ mb.style.display=""; mb.textContent="MOSS: "+s.current_moss_reason; }
+  else mb.style.display="none";
+  if(cur) visited.add(cur);
+  renderStates();
+  renderArts(s.refs||{});
+  renderDeliverable(s.bundle_ready);
+  // one-time prompts for non-typing human waits
+  if(cur==="HumanIdeaCheckpoint" && lastPrompt!=="HumanIdeaCheckpoint"){
+    lastPrompt="HumanIdeaCheckpoint";
+    const ctx=await artSummary(s.refs||{});
+    // auto-discovered baseline repos: pick one -> AI clones + improves it; skip -> self-writes.
+    const cands=s.repo_candidates||[];
+    let repoHtml="";
+    if(cands.length){
+      repoHtml = `<hr style="border-color:#232838"><b>发现 ${cands.length} 个可用基线仓库</b>`
+        + `<span class="muted">(选一个 → AI 克隆并在其上改进;不选 → 自行写代码)</span>`
+        + `<div class="opts">`
+        + cands.map(c=>{const u=String(c.url||"");const label=escapeHtml(c.name||u.replace("https://github.com/",""));
+            return `<button onclick="sendCheckpointRepo(${inlineArg(u)})">${label}</button>`;}).join("")
+        + `</div>`;
+    }
+    bubble("sys", `<b>人工检查点 — 目前的进展</b><br>${ctx||'<span class="muted">(尚无可展示的产物)</span>'}${repoHtml}<hr style="border-color:#232838">你可以<b>选一个基线仓库</b>(上方按钮)、<b>注入一个研究想法/方向</b>(在下方输入框写下并发送),或点 <button class="ghost" onclick="sendCheckpoint()">继续(让 AI 按上面的方向自行推进)</button>`);
+  }
+  if(cur==="ConfirmingMethod" && lastPrompt!=="ConfirmingMethod"){
+    lastPrompt="ConfirmingMethod";
+    const ctx=await artSummary(s.refs||{});
+    bubble("sys", `<b>人工检查点 — 确认方法</b><br>${ctx||'<span class="muted">(方法已生成)</span>'}<hr style="border-color:#232838">系统已把研究方向具体化成一个<b>明确的方法</b>。<b>确认</b>后进入选基准 / 复现基线;或在下方输入框写下对方法的修改建议并发送(= 打回重新生成方法)。 <button class="ghost" onclick="confirmMethod()">✅ 确认方法,继续</button>`);
+  }
+  if(cur==="AwaitingUserDecision" && lastPrompt!=="AwaitingUserDecision"){
+    lastPrompt="AwaitingUserDecision";
+    let dec={reason:null,actions:[]};
+    try{ dec=await (await fetch("/api/decisions"+(sid?"?sid="+encodeURIComponent(sid):""))).json(); }catch(e){}
+    const ctx=await artSummary(s.refs||{});
+    const btns=(dec.actions||[]).map(a=>`<button onclick="sendDecision(${inlineArg(a.action)})">${escapeHtml(a.label)}</button>`).join("");
+    bubble("sys", `<b>需要你决策</b><br>${DECISION_EXPLAIN[dec.reason]||"系统停在此,请选择下一步。"}<br>${ctx?ctx+"<hr style='border-color:#232838'>":""}
+      <div class="opts">${btns||'<span class="muted">(暂无可用动作)</span>'}</div>`);
+  }
+  if(cur==="ReviewingExperimentPlan" && s.gen_design && lastPrompt!=="ReviewingExperimentPlan"){
+    lastPrompt="ReviewingExperimentPlan";
+    renderDesignReview(s.gen_design);
+  }
+  if(cur!=="HumanIdeaCheckpoint" && cur!=="AwaitingUserDecision" && cur!=="ReviewingExperimentPlan" && cur!=="ConfirmingMethod") lastPrompt=null;
+  if(cur==="Done" && s.completion_verified===true && !_doneShown && s.final_report_ref){
+    const o=await A2(s.final_report_ref);
+    if(o){ renderReport(o, sid); bubble("sys",t("done")); _doneShown=true; }
+  }
+}
+let _doneShown=false;
+function countKey(){ return document.getElementById("evs").children.length; } // rough re-prompt guard
+function renderArts(refs){
+  const items=Object.entries(refs).filter(([k,v])=>v);
+  document.getElementById("arts").innerHTML = items.length
+    ? items.map(([k,v])=>`<a onclick="viewArt(${inlineArg(v)})">${escapeHtml(k)}</a>`).join("")
+    : '<span class="muted">暂无</span>';
+}
+let _bundleSid=null;   // set when viewing a PAST session's bundle (live=null)
+function renderDeliverable(ready, sid){
+  _bundleSid = sid || null;
+  const el=document.getElementById("deliverable");
+  if(!ready){ el.style.display="none"; _bundleCache=null; return; }
+  el.style.display="";
+  const q = _bundleSid ? ("?sid="+encodeURIComponent(_bundleSid)) : "";
+  el.innerHTML = `<b>📦 实验交付产物(报告出炉后可下载 · agent 现写的真实代码)</b><br>`
+    + `<a href="/api/experiment_bundle${q}" download>⬇ 下载可运行实验包(Docker)</a>  ·  `
+    + `<a onclick="showCode('FINAL_REPORT.txt')">📄 最终报告(人类可读)</a>  ·  `
+    + `<a onclick="showCode('method.py')">method.py</a>  ·  `
+    + `<a onclick="showCode('harness.py')">harness.py</a>  ·  `
+    + `<a onclick="showCode('README.md')">README</a>  ·  `
+    + `<a onclick="showCode('Dockerfile')">Dockerfile</a>`;
+}
+let _bundleCache=null;
+async function showCode(name){
+  try{
+    if(!_bundleCache){
+      const q = _bundleSid ? ("?sid="+encodeURIComponent(_bundleSid)) : "";
+      _bundleCache=await (await fetch("/api/experiment_files"+q)).json();
+    }
+    const c=(_bundleCache.files||{})[name];
+    document.getElementById("art").textContent = c!=null ? c : "(该文件不存在)";
+  }catch(e){ document.getElementById("art").textContent="(读取实验代码失败)"; }
+}
+async function viewArt(ref){
+  try{ const r=await (await fetch("/api/artifact?ref="+encodeURIComponent(ref))).json();
+    document.getElementById("art").textContent=JSON.stringify(r.obj,null,2);
+  }catch(e){ document.getElementById("art").textContent="(读取失败)"; }
+}
+const DECISION_EXPLAIN={
+  literature_uncertain:"文献证据被判不足(见下方已检索的论文)。可让它深挖更多文献、人工提供论文、或带 caveat 接受现状继续建模。",
+  out_of_scope:"系统判定课题可能超出可自动验证的范围(建不了可靠 verifier / 偏理论或湿实验)。",
+  baseline_unreproducible:"基线复现反复不成功。可换 benchmark、用现有产物继续、写复现失败报告、或放弃。",
+  result_suspicious:"结果被判可疑。可丢弃、严格重跑、或带 caveat 接受出报告。",
+  hypothesis_stagnation:"假设反复被否。可注入想法、扩大搜索、或缩小范围。",
+  search_space_collapse:"搜索多样性坍缩。可扩大搜索、注入想法、或调整。",
+};
+async function artSummary(refs){
+  const parts=[];
+  async function A(ref){ try{ return (await (await fetch("/api/artifact?ref="+encodeURIComponent(ref))).json()).obj; }catch(e){ return null; } }
+  if(refs&&refs.research_spec_ref){ const o=await A(refs.research_spec_ref); const g=o&&(o.research_goal||o.restated_goal||o.topic);
+    if(g) parts.push("<b>研究方向</b>:"+escapeHtml(String(g).slice(0,600))); }
+  if(refs&&refs.literature_brief_ref){ const o=await A(refs.literature_brief_ref); const kp=(o&&(o.key_papers||o.papers))||[];
+    if(kp.length) parts.push("<b>已检索文献 "+kp.length+" 篇</b>:<br>"+kp.slice(0,5).map(p=>"&nbsp;· "+escapeHtml(String(p.title||p.id_or_url||"").slice(0,90))).join("<br>"));
+    else parts.push("<b>已检索文献</b>:0 篇(此题较基础,未匹配到相关论文)"); }
+  if(refs&&refs.hypothesis_bank_ref){ const o=await A(refs.hypothesis_bank_ref); const hs=(o&&o.hypotheses)||[];
+    if(hs.length) parts.push("<b>已生成假设 "+hs.length+" 条</b>:<br>"+hs.slice(0,4).map(h=>"&nbsp;· "+escapeHtml(String(h.statement||"").slice(0,90))).join("<br>")); }
+  return parts.join("<br>");
+}
+async function post(url,body){ return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}); }
+function send(){
+  const t=document.getElementById("composer").value.trim(); if(!t) return;
+  // Gate on the PENDING QUESTION (from SSE), not the polled state -- avoids the
+  // race where the first state poll hasn't run yet.
+  if(curQ){
+    answeredQids.add(curQ.question_id);  // never re-show this question (SSE or polling)
+    bubble("a", escapeHtml(t)); post("/api/human",{sid,kind:"clarify",question_id:curQ.question_id,answer_text:t});
+    curQ=null;  // answered; next question (if any) arrives via SSE and re-arms
+  } else if(cur==="AwaitingUserDecision"){
+    bubble("a","决策: "+escapeHtml(t)); post("/api/human",{sid,kind:"decision",decision:t});
+  } else if(cur==="HumanIdeaCheckpoint"){
+    bubble("a","注入想法: "+escapeHtml(t)); post("/api/human",{sid,kind:"checkpoint",inject:true,idea:t});
+  } else if(cur==="ConfirmingMethod"){
+    bubble("a","方法修改建议: "+escapeHtml(t)); post("/api/human",{sid,kind:"method",inject:true,idea:t});
+  } else {
+    bubble("sys","当前("+escapeHtml(cur||"处理中")+")不接受文本输入,请稍候…");
+  }
+  document.getElementById("composer").value="";
+}
+function fillAndSend(txt){ document.getElementById("composer").value=txt; send(); }
+function sendCheckpoint(){ bubble("a","继续(不注入)"); post("/api/human",{sid,kind:"checkpoint",inject:false}); }
+function confirmMethod(){ bubble("a","确认方法,继续"); post("/api/human",{sid,kind:"method",inject:false}); }
+function sendCheckpointRepo(url){ bubble("a","选用基线仓库: "+escapeHtml(url)); post("/api/human",{sid,kind:"checkpoint",inject:false,confirmed_repo_url:url}); }
+function sendDecision(d){ bubble("a","决策: "+escapeHtml(d)); post("/api/human",{sid,kind:"decision",decision:d}); }
+
+document.getElementById("sendBtn").onclick=send;
+document.getElementById("composer").addEventListener("keydown",e=>{
+  if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+});
+let _pollStarted=false;
+function startPolling(){ if(!_pollStarted){ _pollStarted=true; setInterval(refreshState,1500); } refreshState(); }
+document.getElementById("startBtn").onclick=async ()=>{
+  const topic=document.getElementById("topic").value.trim(); if(!topic) return;
+  const btn=document.getElementById("startBtn"); btn.disabled=true;
+  // i18n output language: seed the pipeline with a directive so every downstream
+  // agent (clarify / design / report) produces user-facing text in the chosen
+  // language. zh-CN (default) needs none. The displayed topic stays clean.
+  const dir=t("_outdir");
+  const seedTopic = dir ? (topic+"\n\n["+dir+"]") : topic;
+  const downloadsApproved=document.getElementById("allowDownloads").checked;
+  const confirmedBoundary={download_authorization:{
+    approved:downloadsApproved,
+    scope:"repository-required dependencies, datasets, model artifacts, and the configured sandbox image from repository-declared or official sources",
+    reuse_cache_first:true,
+    direct_connection:true,
+    unverified_sources:false
+  }};
+  try{
+    let r=await (await post("/api/session",{topic:seedTopic, language:_lang,
+      confirmed_boundary:confirmedBoundary, request_id:crypto.randomUUID()})).json();
+    while(r.status==="starting" && r.request_id){
+      await new Promise(resolve=>setTimeout(resolve,1000));
+      r=await (await fetch("/api/session/start_status?request_id="+encodeURIComponent(r.request_id))).json();
+    }
+    if(!r.session_id){ bubble("sys","⚠️ 暂时无法开始(可能已有会话在跑或服务繁忙)。请稍候重试,或刷新页面重连。"); return; }
+    sid=r.session_id;
+    if(r.existing){
+      document.getElementById("meta").textContent="session="+(sid||"").slice(0,8)+" · 已有会话在进行(已重连)";
+      bubble("sys","已有一个研究会话在进行,已重连到它(当前状态:"+escapeHtml(r.current_state||"?")+")。要开新主题请等它结束或刷新页面。");
+    } else {
+      visited=new Set(); curQ=null; lastPrompt=null; answeredQids=new Set(); _doneShown=false;
+      document.getElementById("evs").innerHTML=""; document.getElementById("chat").innerHTML="";
+      document.getElementById("meta").textContent="model="+r.model+" · session="+(sid||"").slice(0,8);
+      bubble("sys","已开始研究:"+escapeHtml(topic));
+    }
+    _mode="live"; showDetail(); connectSSE(); startPolling();
+  }catch(e){ bubble("sys","⚠️ 请求失败:"+escapeHtml(e)); }
+  finally{ btn.disabled=false; }
+};
+let _es=null;
+function connectSSE(){ if(_es) return; _es=new EventSource("/api/events"+(sid?"?sid="+encodeURIComponent(sid):"")); _es.onmessage=e=>addEv(JSON.parse(e.data)); }
+// --- v2: home page (session list) + read-only history view -------------------
+function showDetail(){ document.getElementById("home").style.display="none"; document.getElementById("main").style.display=""; }
+async function showHome(){
+  _mode="home";
+  document.getElementById("main").style.display="none";
+  document.getElementById("home").style.display="";
+  const el=document.getElementById("sessionList");
+  try{
+    const r=await (await fetch("/api/sessions")).json();
+    const active=r.active, rows=(r.sessions||[]);
+    if(!rows.length){ el.innerHTML='<span class="muted">还没有会话。上方输入主题点「开始」新建。</span>'; return; }
+    el.innerHTML = rows.map(s=>{
+      const live = (active||[]).includes(s.session_id) && !["Done","Failed"].includes(s.current_state);
+      const badge = live ? '<span style="color:#4ade80">● 进行中</span>'
+                         : '<span class="muted">'+escapeHtml(s.current_state||"?")+'</span>';
+      const rep = s.final_report_ref ? ' · 📄有报告' : '';
+      return `<div onclick="openSession(${inlineArg(s.session_id)},${live})" style="padding:10px 12px;border:1px solid #232838;border-radius:8px;margin-bottom:8px;cursor:pointer">
+        <b>${escapeHtml(s.topic||"(untitled)")}</b> &nbsp; ${badge}<br>
+        <span class="muted" style="font-size:12px">${escapeHtml(s.session_id.slice(0,8))}${rep}</span></div>`;
+    }).join("");
+  }catch(e){ el.innerHTML='<span class="muted">加载失败:'+escapeHtml(""+e)+'</span>'; }
+}
+function openSession(sessId, live){
+  showDetail();
+  document.getElementById("chat").innerHTML=""; document.getElementById("evs").innerHTML="";
+  if(live){
+    sid=null; curQ=null; lastPrompt=null; answeredQids=new Set(); _doneShown=false;  // let refreshState re-adopt the active session
+    _mode="live"; connectSSE(); startPolling();
+  } else {
+    openPast(sessId);
+  }
+}
+async function openPast(sessId){
+  _mode="past"; sid=null;
+  try{
+    const v=await (await fetch("/api/session_view?sid="+encodeURIComponent(sessId))).json();
+    document.getElementById("meta").textContent="session="+sessId.slice(0,8)+" · "+(v.current_state||"?")+"(历史 · 只读)";
+    document.getElementById("curState").textContent=v.current_state||"—";
+    visited=new Set(v.refs?Object.keys(v.refs):[]); renderStates();
+    renderArts(v.refs||{});
+    renderDeliverable(v.bundle_ready, sessId);
+    if(v.final_report_ref){ const o=await A2(v.final_report_ref); renderReport(o, sessId); }
+    else bubble("sys","这个会话没有最终报告。左侧/右侧可查看已产出的产物。");
+  }catch(e){ bubble("sys","读取会话失败:"+escapeHtml(""+e)); }
+}
+async function A2(ref){ try{ return (await (await fetch("/api/artifact?ref="+encodeURIComponent(ref))).json()).obj; }catch(e){ return null; } }
+// Human design-review gate: show the concrete P1 design and let the user approve
+// (run it) or ask for a re-design, BEFORE the ~30-min Docker run.
+function renderDesignReview(d){
+  const row=(k,v)=> v!=null&&v!=="" ? `<br><b>${escapeHtml(k)}</b>: ${escapeHtml(String(v).slice(0,500))}` : "";
+  let h = `<b>${t("review_plan_title")}</b>`
+    + row(t("rp_task"), d.task) + row(t("rp_baseline"), d.baseline)
+    + row(t("rp_method"), d.method_interface) + row(t("rp_metric"), d.metric)
+    + row(t("rp_success"), d.success_criterion) + row(t("rp_instances"), d.instance_spec)
+    + `<br><br>${t("rp_hint")}`
+    + `<div class="opts"><button onclick="sendReviewDesign(true)">${t("rp_approve")}</button>`
+    + `<button class="ghost" onclick="sendReviewDesign(false)">${t("rp_redesign")}</button></div>`;
+  bubble("sys", h);
+}
+async function sendReviewDesign(approved){
+  bubble("a", approved ? t("rp_approve") : t("rp_redesign"));
+  // Do NOT reset lastPrompt here: on APPROVE the state stays ReviewingExperimentPlan for a
+  // poll or two before transitioning, and clearing lastPrompt made the next poll re-render
+  // the whole design-review panel (the "审阅两遍" duplicate). A REJECT/re-plan re-prompt is
+  // already handled: leaving ReviewingExperimentPlan resets lastPrompt (see refreshState),
+  // so the re-designed plan is shown fresh on re-entry.
+  await post("/api/review_design",{sid,approved});
+}
+// Human-readable final report (the report.json is for machines; this is for people).
+function renderReport(o, reportSid){
+  if(!o){ bubble("sys",t("no_report")); return; }
+  const sec=(title,arr)=>{ arr=(arr||[]).filter(x=>x); return arr.length? `<br><b>${title}</b><br>`+arr.map(x=>"· "+escapeHtml(typeof x==="string"?x:JSON.stringify(x))).join("<br>") : ""; };
+  const q=reportSid ? ("?sid="+encodeURIComponent(reportSid)) : "";
+  let h = `<b>${t("report_title")}</b><br><a href="/api/report_download${q}" download>⬇ 下载完整报告(.md)</a>`;
+  if(o.report_body) h += `<pre style="white-space:pre-wrap;margin-top:12px">${escapeHtml(o.report_body)}</pre>`;
+  if(o.summary) h += `<br><br>${escapeHtml(o.summary)}`;
+  h += sec(t("verified"), o.verified_findings);
+  h += sec(t("negative"), o.negative_results);
+  h += sec(t("caveats"), o.analysis_caveats);
+  h += sec(t("risks"), o.known_risks);
+  h += sec(t("notrun"), o.experiment_not_run);
+  const led=(o.experiment_ledger||[]);
+  if(led.length){ h += `<br><b>${t("ledger")}</b><br>`+led.map(e=>"· "+escapeHtml((e.experiment_id||"?")+": "+(e.verdict||"?")+" (metric="+(e.metric_value)+")")).join("<br>"); }
+  bubble("sys", h);
+}
+// Auth bar: only when the login system is on AND a user is signed in. Admins get an
+// "审核账号" (account approval) link to /admin; everyone gets username + logout. When auth
+// is off, /api/auth/me is 401 and the bar stays hidden (no change to the open-mode UI).
+async function initAuthBar(){
+  const bar=document.getElementById("authbar"); if(!bar) return;
+  try{
+    const r=await fetch("/api/auth/me");
+    if(!r.ok){ bar.style.display="none"; return; }
+    const u=await r.json();
+    let html="";
+    if(u.is_admin){ html+='<a href="/admin" style="color:#9db4ff;text-decoration:none;margin-right:12px">🛡 审核账号</a>'; }
+    html+='<span style="margin-right:10px">'+(u.is_admin?"👑 ":"")+escapeHtml(u.username)+'</span>';
+    html+='<a href="#" onclick="doLogout();return false" style="color:#9db4ff;text-decoration:none">退出</a>';
+    bar.innerHTML=html; bar.style.display="";
+  }catch(e){ bar.style.display="none"; }
+}
+async function doLogout(){ try{ await fetch("/api/auth/logout",{method:"POST"}); }catch(e){} window.location.href="/login"; }
+
+applyLang();  // i18n: paint the page in the saved language before anything else
+initAuthBar();
+renderStates();
+showHome();   // v2: land on the home page (session list), not straight into a live view
+</script>
+</body>
+</html>

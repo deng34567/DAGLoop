@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/deliberation.ready.v1.schema.json",
+  "title": "deliberation.ready (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "deliberation_report_ref": {"type": "string"}
+  }
+}

@@ -1,0 +1,54 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/research_spec.schema.yaml"
+title: "ResearchSpec"
+description: >
+  Frozen artifact produced by ProblemModelingAgent's ClarifyingResearchGoal
+  dialogue (AutoResearch state machine V1.10 §1). Stored as a blob in the
+  Research Store (kind="research_spec"); only its ref is carried in the
+  research_spec.ready event payload. Drafts accumulated during the dialogue
+  use the same shape under kind="research_spec_draft" and may have most
+  fields still null/empty.
+type: object
+required:
+  - topic
+  - research_goal
+additionalProperties: false
+properties:
+  topic:
+    type: string
+    description: "Confirmed research topic (short label)."
+  research_goal:
+    type: string
+    description: "Confirmed statement of what the research aims to achieve."
+  task_mode:
+    type: ["string", "null"]
+    enum:
+      - benchmark
+      - idea_theory
+      - experiment_validation
+      - portfolio_tree_search
+      - collective_arena
+      - lab_in_the_loop
+      - null
+    description: "Which of the 6 AutoResearch task modes this session runs, or null if not yet decided."
+  budget:
+    type: ["object", "string", "null"]
+    description: "Compute/time/cost budget: either a free-form string (e.g. 'two weeks') or a structured object. Null if not yet clarified."
+  deliverable_form:
+    type: ["string", "null"]
+    description: "Expected form of the final deliverable (e.g. 'paper draft', 'code repo'). Null if not yet clarified."
+  editable_scope:
+    type: array
+    items:
+      type: string
+    description: "Which parts of the plan/artifacts the agents are allowed to modify. Empty until clarified."
+  forbidden_items:
+    type: array
+    items:
+      type: string
+    description: "Things explicitly out of scope / forbidden. Empty until clarified."
+  open_questions:
+    type: array
+    items:
+      type: string
+    description: "Clarification questions not yet resolved. Empty once the spec is frozen."

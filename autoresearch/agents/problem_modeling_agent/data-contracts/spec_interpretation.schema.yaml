@@ -1,0 +1,230 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/spec_interpretation.schema.yaml"
+title: "SpecInterpretation"
+description: >
+  Frozen artifact produced by ProblemModelingAgent's ReinterpretingSpec mode
+  (AutoResearch state machine V1.10 §1): having read the frozen ResearchSpec
+  plus the literature / field-trajectory briefs, ProblemModelingAgent judges
+  whether the naive framing of the problem still holds. Stored as a blob in
+  the Research Store (kind="spec_interpretation"); only its ref is carried in
+  the spec.reinterpreted event payload.
+type: object
+required:
+  - disposition
+  - real_open_problem
+  - scope_reason
+  - evaluation_semantics
+additionalProperties: false
+properties:
+  validation_study:
+    description: >
+      Optional lightweight empirical study derived from the reinterpreted
+      research question. Null means no honest, runnable validation was found
+      and the theory-only reporting path remains valid.
+    oneOf:
+      - type: "null"
+      - type: object
+        required:
+          - kind
+          - question
+          - sampling_frame
+          - data_sources
+          - variables
+          - analysis
+          - falsification_condition
+          - budget
+        additionalProperties: false
+        properties:
+          kind:
+            const: survey_validation
+          question:
+            type: string
+            minLength: 1
+          sampling_frame:
+            type: string
+            minLength: 1
+          data_sources:
+            type: array
+            minItems: 1
+            items:
+              type: string
+              minLength: 1
+          variables:
+            type: array
+            minItems: 1
+            items:
+              type: string
+              minLength: 1
+          analysis:
+            type: string
+            minLength: 1
+          falsification_condition:
+            type: string
+            minLength: 1
+          budget:
+            type: string
+            minLength: 1
+  naive_assumptions:
+    type: array
+    items:
+      type: string
+    description: "Assumptions baked into the original ResearchSpec that the literature review calls into question. Empty if none."
+  real_open_problem:
+    type: string
+    description: "Restatement of the actual open problem once the literature review is accounted for."
+  topic_position:
+    type: string
+    description: "Where this topic sits relative to the surrounding field / prior work."
+  disposition:
+    type: string
+    enum:
+      - in_scope
+      - scope_changed
+      - out_of_scope
+    description: "ProblemModelingAgent's verdict: the original ResearchSpec still holds (in_scope), needs revision (scope_changed), or is no longer viable (out_of_scope)."
+  scope_reason:
+    type: string
+    description: "Justification for the disposition verdict."
+  evaluation_semantics:
+    type: object
+    description: >
+      Literature-grounded definition of the scientific comparison that later
+      benchmark selection and experiment execution must preserve.
+    required:
+      - comparison_statement
+      - research_question
+      - primary_metric
+      - comparison_mode
+      - comparison_basis
+      - budget_interpretation
+      - conditions_to_hold_constant
+      - method_freedom
+      - data_source
+      - evaluator_source
+      - observed_outcomes
+      - outcome_criteria
+      - evidence
+      - uncertainties
+    additionalProperties: false
+    if:
+      properties:
+        comparison_mode:
+          const: repository_defined
+    else:
+      properties:
+        primary_metric:
+          properties:
+            direction:
+              enum: [minimize, maximize]
+    properties:
+      comparison_statement:
+        type: string
+        minLength: 1
+        description: >
+          Complete operational comparison: shared conditions, budget, allowed
+          method changes, and the final deciding metric in one statement.
+      research_question:
+        type: string
+        minLength: 1
+      primary_metric:
+        type: object
+        required: [name, direction, measurement]
+        additionalProperties: false
+        properties:
+          name:
+            type: string
+            minLength: 1
+          direction:
+            type: string
+            enum: [minimize, maximize, unresolved]
+            description: "unresolved is provisional only for repository_defined before the official evaluator is inspected."
+          measurement:
+            type: string
+            minLength: 1
+            description: "How the deciding value is obtained from the named evaluator output."
+      comparison_mode:
+        type: string
+        enum:
+          - quality_at_fixed_time
+          - quality_at_fixed_work
+          - time_to_target
+          - repository_defined
+          - open_ended_improvement
+      comparison_basis:
+        type: string
+        minLength: 1
+      budget_interpretation:
+        type: string
+        minLength: 1
+      conditions_to_hold_constant:
+        type: array
+        minItems: 1
+        items:
+          type: string
+          minLength: 1
+      method_freedom:
+        type: array
+        minItems: 1
+        items:
+          type: string
+          minLength: 1
+      data_source:
+        type: string
+        minLength: 1
+        description: "Semantic identity/provenance of the data used by both sides."
+      evaluator_source:
+        type: string
+        minLength: 1
+        description: "Semantic identity/provenance of the evaluator used by both sides."
+      observed_outcomes:
+        type: array
+        items:
+          type: string
+          minLength: 1
+        description: "Reported quantities that are consequences, not comparison controls."
+      evaluation_notes:
+        type: array
+        items:
+          type: string
+          minLength: 1
+        description: >
+          Free task-specific precautions needed to interpret or execute the
+          comparison honestly. New ReinterpretingSpec outputs always include
+          this field; it remains optional in the schema for imported legacy
+          artifacts.
+      outcome_criteria:
+        type: object
+        required: [success, failure, inconclusive]
+        additionalProperties: false
+        properties:
+          success:
+            type: string
+            minLength: 1
+          failure:
+            type: string
+            minLength: 1
+          inconclusive:
+            type: string
+            minLength: 1
+      evidence:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [source_type, source_id, supports]
+          additionalProperties: false
+          properties:
+            source_type:
+              type: string
+              enum: [research_spec, key_paper, existing_benchmark, field_trajectory]
+            source_id:
+              type: string
+              minLength: 1
+            supports:
+              type: string
+              minLength: 1
+      uncertainties:
+        type: array
+        items:
+          type: string
+          minLength: 1

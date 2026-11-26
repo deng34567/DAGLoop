@@ -1,0 +1,780 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/baseline_result.schema.yaml"
+title: "BaselineResult"
+description: >
+  Frozen artifact produced by RunnerAgent's baseline reproduction attempt
+  (AutoResearch state machine V1.10): having read the frozen BenchmarkSpec
+  and VerifierSpec, RunnerAgent runs the baseline command and records
+  whether the reported metric was reproduced within tolerance. Stored as a
+  blob in the Research Store (kind="baseline_result"); only its ref is
+  carried in the baseline.reproduced event payload.
+
+  Because this schema sets additionalProperties: false, the optional
+  fields below (metric_value, reported_metric, tolerance, seed,
+  runtime_seconds, log_excerpt) are declared nullable: RunnerAgent emits
+  them explicitly as null when no value is available (e.g. a benchmark
+  with no previously reported_metric), rather than omitting the key.
+type: object
+required:
+  - benchmark_id
+  - reproduced
+  - command
+  - exit_code
+  - environment
+additionalProperties: false
+properties:
+  checkpoint:
+    type: [string, "null"]
+  measurement_evidence:
+    type: [object, "null"]
+  source_history:
+    type: [array, "null"]
+    items:
+      type: object
+  benchmark_id:
+    type: string
+    description: "Identifier of the benchmark being reproduced, mirroring BenchmarkSpec.benchmark_id."
+  reproduced:
+    type: boolean
+    description: "Whether the baseline was successfully reproduced (metric_value within tolerance of reported_metric, and the run exited cleanly)."
+  metric_value:
+    type: [number, "null"]
+    description: "The metric value actually observed from this run, or null if the run did not produce one (e.g. crashed before completion)."
+  reported_metric:
+    type: [number, "null"]
+    description: "The metric value reported by the original benchmark source (BenchmarkSpec.baseline.reported_metric), or null if none was reported."
+  tolerance:
+    type: [number, "null"]
+    description: "Allowed relative/absolute deviation between metric_value and reported_metric for reproduced to be true, or null if not applicable."
+  environment:
+    type: string
+    description: "Description of the execution environment (e.g. Python/CUDA/hardware versions) the run was performed in."
+  command:
+    type: string
+    description: "The exact command that was executed to attempt reproduction."
+  seed:
+    type: [string, "null"]
+    description: "Random seed(s) used for the run, or null if not seeded/applicable."
+  runtime_seconds:
+    type: [number, "null"]
+    description: "Wall-clock runtime of the run in seconds, or null if not measured."
+  exit_code:
+    type: integer
+    description: "Process exit code of the baseline command."
+  log_excerpt:
+    type: [string, "null"]
+    description: "Relevant excerpt from the run's stdout/stderr log, or null if none captured."
+  source_kind:
+    type: string
+    enum: [published_reference, live_repo]
+    description: "Whether this artifact is only a published reference or a live unmodified-repository measurement."
+  repo_url:
+    type: string
+    description: "Repository URL used for a live repository baseline."
+  repo_commit:
+    type: string
+    description: "Exact repository commit measured by the live baseline run."
+  metric_name:
+    type: string
+    description: "Name of the metric measured by the live repository evaluator."
+  metric_unit:
+    type: [string, "null"]
+    description: "Unit of the directly measured scalar, shared by baseline and method."
+  lower_is_better:
+    type: boolean
+    description: "True when a lower metric value is better."
+  fixed_config:
+    type: string
+    description: "Canonical fixed run configuration shared by the baseline and method runs."
+  environment_fingerprint:
+    type: string
+    description: "Stable fingerprint of the execution target and relevant software environment."
+  benchmark_contract:
+    type: [object, "null"]
+    description: "Canonical source-aware fairness contract shared by baseline and method runs."
+  repository_contract:
+    description: "Host-captured repository task documents that constrain the method run."
+    oneOf:
+      - type: "null"
+      - type: object
+        required: [sources]
+        additionalProperties: false
+        properties:
+          sources:
+            type: array
+            items:
+              type: object
+              required: [path, sha256, content]
+              additionalProperties: false
+              properties:
+                path:
+                  type: string
+                  minLength: 1
+                sha256:
+                  type: string
+                  pattern: "^[0-9a-f]{64}$"
+                content:
+                  type: string
+  contract_fingerprint:
+    type: [string, "null"]
+    description: "SHA-256 identity of benchmark_contract."
+  host_attestation:
+    oneOf:
+      - type: "null"
+      - type: object
+        required:
+          - host_issued
+          - source
+          - phase
+          - attempt_id
+          - measurement_spec
+          - argv
+          - cwd
+          - start
+          - end
+          - rc
+          - stdout_sha256
+          - stderr_sha256
+          - repo_commit_start
+          - repo_commit_end
+          - repo_commit
+          - tracked_diff_hash_start
+          - tracked_diff_hash_end
+          - tracked_diff_present
+          - tracked_diff_paths
+          - immutable_file_hashes
+          - official_source_evidence
+          - trusted_probe_evidence
+          - artifact_evidence
+          - prior_artifact_evidence
+          - agent_attempt_evidence
+          - resource_evidence
+          - actual_controls
+          - untracked_files
+          - protocol_evidence
+          - metric_evidence
+        additionalProperties: false
+        properties:
+          host_issued:
+            const: true
+          source:
+            const: host_remeasurement
+          phase:
+            const: baseline
+          attempt_id:
+            type: string
+            minLength: 1
+          measurement_spec:
+            type: object
+            required: [execution, trusted_probe]
+            additionalProperties: false
+            properties:
+              execution:
+                type: object
+                required: [argv, cwd]
+                additionalProperties: false
+                properties:
+                  argv:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: string
+                      minLength: 1
+                  cwd:
+                    type: string
+                    minLength: 1
+              trusted_probe:
+                oneOf:
+                  - type: object
+                    required: [kind, argv, cwd, parser, artifact]
+                    additionalProperties: false
+                    properties:
+                      kind:
+                        const: external_scorer
+                      argv:
+                        type: array
+                        minItems: 1
+                        items:
+                          type: string
+                          minLength: 1
+                      cwd:
+                        type: string
+                        minLength: 1
+                      parser:
+                        type: object
+                        required: [stream, regex, group]
+                        additionalProperties: false
+                        properties:
+                          stream:
+                            type: string
+                            enum: [stdout, stderr, combined]
+                          regex:
+                            type: string
+                            minLength: 1
+                          group:
+                            oneOf:
+                              - type: integer
+                                minimum: 0
+                              - type: string
+                                minLength: 1
+                      protocol_parser:
+                        type: object
+                        required: [stream, regex, group, unit]
+                        additionalProperties: false
+                        properties:
+                          stream:
+                            type: string
+                            enum: [stdout, stderr, combined]
+                          regex:
+                            type: string
+                            minLength: 1
+                          group:
+                            oneOf:
+                              - type: integer
+                                minimum: 0
+                              - type: string
+                                minLength: 1
+                          unit:
+                            type: string
+                            enum: [seconds, steps, tokens]
+                          multiplier:
+                            type: number
+                            exclusiveMinimum: 0
+                      artifact:
+                        type: object
+                        required: [path, producer_sha256_before, required_new]
+                        additionalProperties: false
+                        properties:
+                          path:
+                            type: string
+                            minLength: 1
+                          producer_sha256_before:
+                            type: "null"
+                          required_new:
+                            const: true
+                  - type: object
+                    required: [kind, source_path, module, callable]
+                    additionalProperties: false
+                    properties:
+                      kind:
+                        const: python_callable
+                      source_path:
+                        type: string
+                        minLength: 1
+                      module:
+                        type: string
+                        minLength: 1
+                      callable:
+                        type: string
+                        minLength: 1
+                      protocol_parser:
+                        type: object
+                        required: [stream, regex, group, unit]
+                        additionalProperties: false
+                        properties:
+                          stream:
+                            type: string
+                            const: stdout
+                          regex:
+                            type: string
+                            minLength: 1
+                          group:
+                            oneOf:
+                              - type: integer
+                                minimum: 0
+                              - type: string
+                                minLength: 1
+                          unit:
+                            type: string
+                            enum: [seconds, steps, tokens]
+                          multiplier:
+                            type: number
+                            exclusiveMinimum: 0
+          argv:
+            type: array
+            minItems: 1
+            items:
+              type: string
+              minLength: 1
+          cwd:
+            type: string
+            minLength: 1
+          start:
+            type: number
+          end:
+            type: number
+          rc:
+            const: 0
+          stdout_sha256:
+            type: string
+            pattern: '^sha256:[0-9a-f]{64}$'
+          stderr_sha256:
+            type: string
+            pattern: '^sha256:[0-9a-f]{64}$'
+          repo_commit_start:
+            type: string
+            minLength: 1
+          repo_commit_end:
+            type: string
+            minLength: 1
+          repo_commit:
+            type: string
+            minLength: 1
+          tracked_diff_hash_start:
+            type: string
+            pattern: '^sha256:[0-9a-f]{64}$'
+          tracked_diff_hash_end:
+            type: string
+            pattern: '^sha256:[0-9a-f]{64}$'
+          tracked_diff_present:
+            const: false
+          tracked_diff_paths:
+            type: array
+            maxItems: 0
+          immutable_file_hashes:
+            type: object
+            minProperties: 1
+            propertyNames:
+              pattern: '^(?!/)(?![A-Za-z]:)(?!.*(?:^|[/\\])\.\.(?:[/\\]|$)).+$'
+            additionalProperties:
+              type: string
+              pattern: '^sha256:[0-9a-f]{64}$'
+          official_source_evidence:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              oneOf:
+                - type: object
+                  required: [authority, role, path, line_start, line_end, file_sha256,
+                             excerpt_sha256, command, identity_sha256]
+                  additionalProperties: false
+                  properties:
+                    authority:
+                      const: repository
+                    role:
+                      type: string
+                      enum: [execution, trusted_probe]
+                    path:
+                      type: string
+                      minLength: 1
+                    line_start:
+                      type: integer
+                      minimum: 1
+                    line_end:
+                      type: integer
+                      minimum: 1
+                    file_sha256:
+                      type: string
+                      pattern: '^sha256:[0-9a-f]{64}$'
+                    excerpt_sha256:
+                      type: string
+                      pattern: '^sha256:[0-9a-f]{64}$'
+                    command:
+                      type: string
+                      minLength: 1
+                    identity_sha256:
+                      type: string
+                      pattern: '^sha256:[0-9a-f]{64}$'
+                - type: object
+                  required: [authority, role, boundary_sha256, identity_sha256]
+                  additionalProperties: false
+                  properties:
+                    authority:
+                      const: user
+                    role:
+                      type: string
+                      enum: [execution, trusted_probe]
+                    boundary_sha256:
+                      type: string
+                      pattern: '^sha256:[0-9a-f]{64}$'
+                    identity_sha256:
+                      type: string
+                      pattern: '^sha256:[0-9a-f]{64}$'
+          trusted_probe_evidence:
+            oneOf:
+              - type: object
+                required: [kind, argv, cwd]
+                additionalProperties: false
+                properties:
+                  kind:
+                    const: external_scorer
+                  argv:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: string
+                      minLength: 1
+                  cwd:
+                    type: string
+                    minLength: 1
+              - type: object
+                required: [kind, source_path, module, callable, call_count,
+                           bootstrap_sha256]
+                additionalProperties: false
+                properties:
+                  kind:
+                    const: python_callable
+                  source_path:
+                    type: string
+                    minLength: 1
+                  module:
+                    type: string
+                    minLength: 1
+                  callable:
+                    type: string
+                    minLength: 1
+                  call_count:
+                    type: integer
+                    const: 1
+                  bootstrap_sha256:
+                    type: string
+                    pattern: '^sha256:[0-9a-f]{64}$'
+          artifact_evidence:
+            oneOf:
+              - type: "null"
+              - type: object
+                required: [path, sha256, mtime, size, required_new]
+                additionalProperties: false
+                properties:
+                  path:
+                    type: string
+                    minLength: 1
+                  sha256:
+                    type: string
+                    pattern: '^sha256:[0-9a-f]{64}$'
+                  mtime:
+                    type: number
+                  size:
+                    type: integer
+                    minimum: 0
+                  required_new:
+                    const: true
+          prior_artifact_evidence:
+            oneOf:
+              - type: "null"
+              - type: object
+                required: [state, path]
+                additionalProperties: false
+                properties:
+                  state:
+                    const: absent
+                  path:
+                    type: string
+                    minLength: 1
+              - type: object
+                required: [state, path, quarantine_path, sha256, size, mtime, source,
+                           attempt_id]
+                additionalProperties: false
+                properties:
+                  state:
+                    const: quarantined
+                  path:
+                    type: string
+                    minLength: 1
+                  quarantine_path:
+                    type: string
+                    pattern: '^/'
+                  sha256:
+                    type: string
+                    pattern: '^sha256:[0-9a-f]{64}$'
+                  size:
+                    type: integer
+                    minimum: 0
+                  mtime:
+                    type: number
+                  source:
+                    const: cited_agent_attempt
+                  attempt_id:
+                    type: string
+                    pattern: '^attempt-'
+          agent_attempt_evidence:
+            type: object
+            required: [authority, attempt_id, argv, normalized_argv, execution_argv, cwd, start, end,
+                       rc, count]
+            additionalProperties: false
+            properties:
+              authority:
+                const: host_execution_broker
+              attempt_id:
+                type: string
+                pattern: '^attempt-'
+              argv:
+                type: array
+                minItems: 1
+                items:
+                  type: string
+                  minLength: 1
+              normalized_argv:
+                type: array
+                minItems: 1
+                items:
+                  type: string
+                  minLength: 1
+              execution_argv:
+                type: array
+                minItems: 1
+                items:
+                  type: string
+                  minLength: 1
+              cwd:
+                type: string
+                pattern: '^/'
+              start:
+                type: number
+              end:
+                type: number
+              rc:
+                const: 0
+              count:
+                type: integer
+                minimum: 1
+          resource_evidence:
+            type: object
+            required: [accelerator_count, device_models, source, caveat]
+            additionalProperties: false
+            properties:
+              accelerator_count:
+                type: integer
+                minimum: 0
+              device_models:
+                type: array
+                items:
+                  type: string
+                  minLength: 1
+              source:
+                type: string
+                enum: [nvidia-smi, allocation_count_only]
+              caveat:
+                type: string
+                minLength: 1
+          actual_controls:
+            type: object
+            required: [version, execution, immutable_file_hashes, bindings, caveat]
+            additionalProperties: false
+            properties:
+              version:
+                const: 1
+              execution:
+                type: object
+                required: [argv, cwd, source_paths]
+                additionalProperties: false
+                properties:
+                  argv:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: string
+                      minLength: 1
+                  cwd:
+                    type: string
+                    minLength: 1
+                  source_paths:
+                    type: array
+                    minItems: 1
+                    uniqueItems: true
+                    items:
+                      type: string
+                      pattern: '^(?!/)(?![A-Za-z]:)(?!.*(?:^|[/\\])\.\.(?:[/\\]|$)).+$'
+              immutable_file_hashes:
+                type: object
+                minProperties: 1
+                propertyNames:
+                  pattern: '^(?!/)(?![A-Za-z]:)(?!.*(?:^|[/\\])\.\.(?:[/\\]|$)).+$'
+                additionalProperties:
+                  type: string
+                  pattern: '^sha256:[0-9a-f]{64}$'
+              bindings:
+                type: array
+                items:
+                  type: object
+                  required: [name, value, treatment_axis, source]
+                  additionalProperties: false
+                  properties:
+                    name:
+                      type: string
+                      minLength: 1
+                    value: {}
+                    treatment_axis:
+                      type: [string, "null"]
+                    source:
+                      oneOf:
+                        - type: object
+                          required: [path, format, json_pointer, file_sha256]
+                          additionalProperties: false
+                          properties:
+                            path:
+                              type: string
+                              pattern: '^(?!/)(?![A-Za-z]:)(?!.*(?:^|[/\\])\.\.(?:[/\\]|$)).+$'
+                            format:
+                              const: json
+                            json_pointer:
+                              type: string
+                            file_sha256:
+                              type: string
+                              pattern: '^sha256:[0-9a-f]{64}$'
+                        - type: object
+                          required: [path, format, toml_key, file_sha256]
+                          additionalProperties: false
+                          properties:
+                            path:
+                              type: string
+                              pattern: '^(?!/)(?![A-Za-z]:)(?!.*(?:^|[/\\])\.\.(?:[/\\]|$)).+$'
+                            format:
+                              const: toml
+                            toml_key:
+                              type: string
+                              minLength: 1
+                            file_sha256:
+                              type: string
+                              pattern: '^sha256:[0-9a-f]{64}$'
+                        - type: object
+                          required: [path, format, python_literal_name, file_sha256]
+                          additionalProperties: false
+                          properties:
+                            path:
+                              type: string
+                              pattern: '^(?!/)(?![A-Za-z]:)(?!.*(?:^|[/\\])\.\.(?:[/\\]|$)).+$'
+                            format:
+                              const: python_literal
+                            python_literal_name:
+                              type: string
+                              minLength: 1
+                            file_sha256:
+                              type: string
+                              pattern: '^sha256:[0-9a-f]{64}$'
+              caveat:
+                type: string
+                minLength: 1
+          untracked_files:
+            type: object
+            required: [before, after, added_allowed, added_other]
+            additionalProperties: false
+            properties:
+              before:
+                type: object
+                propertyNames:
+                  pattern: '^(?!/)(?![A-Za-z]:)(?!.*(?:^|[/\\])\.\.(?:[/\\]|$)).+$'
+                additionalProperties: &untracked_file_evidence
+                  oneOf:
+                    - type: object
+                      required: [kind, sha256, size, executable]
+                      additionalProperties: false
+                      properties:
+                        kind:
+                          const: regular
+                        sha256:
+                          type: string
+                          pattern: '^sha256:[0-9a-f]{64}$'
+                        size:
+                          type: integer
+                          minimum: 0
+                        executable:
+                          type: boolean
+                    - type: object
+                      required: [kind, target, executable]
+                      additionalProperties: false
+                      properties:
+                        kind:
+                          const: symlink
+                        target:
+                          type: string
+                        executable:
+                          const: false
+                    - type: object
+                      required: [kind, executable]
+                      additionalProperties: false
+                      properties:
+                        kind:
+                          type: string
+                          enum: [unsafe, other]
+                        executable:
+                          const: false
+              after:
+                type: object
+                propertyNames:
+                  pattern: '^(?!/)(?![A-Za-z]:)(?!.*(?:^|[/\\])\.\.(?:[/\\]|$)).+$'
+                additionalProperties: *untracked_file_evidence
+              added_allowed:
+                type: array
+                uniqueItems: true
+                items:
+                  type: string
+                  pattern: '^(?!/)(?![A-Za-z]:)(?!.*(?:^|[/\\])\.\.(?:[/\\]|$)).+$'
+              added_other:
+                type: array
+                maxItems: 0
+                uniqueItems: true
+                items:
+                  type: string
+                  pattern: '^(?!/)(?![A-Za-z]:)(?!.*(?:^|[/\\])\.\.(?:[/\\]|$)).+$'
+          protocol_evidence:
+            type: object
+            required: [source, unit, value]
+            additionalProperties: false
+            properties:
+              source:
+                type: string
+                enum: [host_elapsed, host_parser]
+              unit:
+                type: string
+                enum: [seconds, steps, tokens]
+              value:
+                type: number
+                exclusiveMinimum: 0
+          metric_evidence:
+            oneOf:
+              - type: object
+                required: [source, stream, regex, group, metric, value]
+                additionalProperties: false
+                properties:
+                  source:
+                    const: host_parser
+                  stream:
+                    type: string
+                    enum: [stdout, stderr, combined]
+                  regex:
+                    type: string
+                    minLength: 1
+                  group:
+                    oneOf:
+                      - type: integer
+                        minimum: 0
+                      - type: string
+                        minLength: 1
+                  metric:
+                    type: string
+                    minLength: 1
+                  value:
+                    type: number
+              - type: object
+                required: [source, stream, metric, value, nonce_sha256]
+                additionalProperties: false
+                properties:
+                  source:
+                    const: host_callable_probe
+                  stream:
+                    const: stderr
+                  metric:
+                    type: string
+                    minLength: 1
+                  value:
+                    type: number
+                  nonce_sha256:
+                    type: string
+                    pattern: '^sha256:[0-9a-f]{64}$'
+    description: "Host-issued evidence binding the metric to the actual baseline attempt."
+  baseline_std:
+    type: [number, "null"]
+    minimum: 0
+    description: "Reported or host-bound repeat standard deviation; only bound samples affect selection."
+  baseline_runs:
+    type: array
+    items:
+      type: number
+    description: "Individual repeated baseline measurements, when available."
+  artifacts:
+    type: array
+    items:
+      type: string
+    description: "Refs or paths to reusable setup and baseline evidence artifacts."

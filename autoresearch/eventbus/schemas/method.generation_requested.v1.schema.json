@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/method.generation_requested.v1.schema.json",
+  "title": "method.generation_requested (v1)",
+  "type": "object",
+  "required": ["problem_model_ref", "literature_brief_ref"],
+  "additionalProperties": false,
+  "properties": {
+    "problem_model_ref": {"type": "string"},
+    "literature_brief_ref": {"type": "string"},
+    "critique_report_ref": {"type": ["string", "null"]},
+    "human_idea_seed_ref": {"type": ["string", "null"]},
+    "novelty_audit_report_ref": {"type": ["string", "null"]},
+    "prior_method_ref": {"type": ["string", "null"]},
+    "repository_context_request": {"type": "object", "additionalProperties": false,
+      "properties": {
+        "repo_url": {"type": ["string", "null"]},
+        "question": {"type": ["string", "null"]},
+        "execution_contract": {"type": ["object", "null"]}
+      }
+    },
+    "research_memory_ref": {"type": ["string", "null"]},
+    "baseline_result_ref": {"type": ["string", "null"]},
+    "spec_interpretation_ref": {"type": ["string", "null"]},
+    "method_not_working": {"type": "boolean"},
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "component_ablation_failed": {"type": "boolean"},
+    "ablation_failed_component": {"type": "string"}
+  }
+}

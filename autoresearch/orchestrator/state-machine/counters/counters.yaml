@@ -1,0 +1,348 @@
+# AutoResearch 计数器规格 (V1.10 §4)
+#
+# 状态转移主要由计数器越阈值触发,把「何时升级处理」从 prompt 软约束抬到协议硬约束。
+#
+# 计数器分两类:
+#   - scalar: 单值(会话级或单次活动级):A / C / H / I / K / L
+#   - map:    按 key 分桶:B[benchmark_id] / D[hypothesis_id] / E[hypothesis_id]
+#             / F[experiment_id] / G[result_id] / J[state] / M[external_experiment_id]
+#
+# Map 类计数器关键不变量:
+#   "key in Map" ⟺ 该作用域处于该计数器对应的阶段。
+#   Reset 一律用 delete_key,不是 set_zero。
+#
+# 业务计数器 vs 基础设施计数器:
+#   A..I,K..M 是业务计数器;J 是基础设施重试计数器,与业务计数器严格隔离,
+#   transient 重试不计入任何业务计数器。
+
+version: "v1.10"
+
+counters:
+
+  # A: direction_critique_round —— 单研究方向的方向挑错轮次
+  - id: A
+    name: direction_critique_round
+    type: scalar
+    scope: single_research_direction
+    range: [0, 3]
+    initial: 0
+    increment_triggers:
+      - trigger: "CritiquingDirection 判定方向重大缺陷"
+        amount: 1
+    reset_triggers:
+      - trigger: "方向通过(CritiquingDirection → RoutingResearchMode)"
+        to: 0
+      - trigger: "人类修改方向"
+        to: 0
+      - trigger: "MOSS 干预完成(direction_thrashing)"
+        to: 0
+    threshold: 3
+    threshold_action:
+      type: transition
+      to: MossIntervening
+      with_reason: direction_thrashing
+
+  # B: baseline_reproduce_round[benchmark_id] —— 单 benchmark baseline 复现轮次
+  - id: B
+    name: baseline_reproduce_round
+    type: map
+    key_type: benchmark_id
+    scope: per_benchmark
+    range: [0, 6]
+    initial_per_key: 1
+    increment_triggers:
+      - trigger: "PreparingVerifier 判定 verifier 不完整,或 ReproducingBaseline 失败"
+        amount: 1
+        on_missing_key: "create key with value 1"
+    reset_triggers:
+      - trigger: "verifier 可运行且 baseline 复现成功"
+        action: delete_key
+      - trigger: "换 benchmark(替换 benchmark_id)"
+        action: delete_key
+    threshold: 6
+    threshold_action:
+      type: transition
+      to: MossIntervening
+      with_reason: baseline_reproduction_thrashing
+
+  # C: hypothesis_reject_round —— 当前 hypothesis pool 全部被否轮次
+  - id: C
+    name: hypothesis_reject_round
+    type: scalar
+    scope: current_hypothesis_pool
+    range: [0, 3]
+    initial: 0
+    increment_triggers:
+      - trigger: "CritiquingHypotheses 全部否决"
+        amount: 1
+    reset_triggers:
+      - trigger: "有 hypothesis 通过"
+        to: 0
+      - trigger: "人类注入新 idea"
+        to: 0
+      - trigger: "MOSS 干预完成(hypothesis_stagnation)"
+        to: 0
+    threshold: 3
+    threshold_action:
+      type: transition
+      to: MossIntervening
+      with_reason: hypothesis_stagnation
+
+  # D: theory_review_round[hypothesis_id] —— 单 hypothesis 理论推导 review 轮次
+  - id: D
+    name: theory_review_round
+    type: map
+    key_type: hypothesis_id
+    scope: per_hypothesis
+    range: [0, 3]
+    initial_per_key: 1
+    increment_triggers:
+      - trigger: "ReviewingTheory 判定不通过"
+        amount: 1
+        on_missing_key: "create key with value 1"
+    reset_triggers:
+      - trigger: "theory 通过"
+        action: delete_key
+      - trigger: "hypothesis 丢弃(同时删 E[hypothesis_id])"
+        action: delete_key
+    threshold: 3
+    threshold_action:
+      type: transition
+      to: MossIntervening
+      with_reason: theory_thrashing
+
+  # E: experiment_plan_review_round[hypothesis_id] —— 单 hypothesis 实验计划 review 轮次
+  - id: E
+    name: experiment_plan_review_round
+    type: map
+    key_type: hypothesis_id
+    scope: per_hypothesis
+    range: [0, 3]
+    initial_per_key: 1
+    increment_triggers:
+      - trigger: "ReviewingExperimentPlan 否决"
+        amount: 1
+        on_missing_key: "create key with value 1"
+    reset_triggers:
+      - trigger: "plan 通过"
+        action: delete_key
+      - trigger: "hypothesis 丢弃(同时删 D[hypothesis_id])"
+        action: delete_key
+    threshold: 3
+    threshold_action:
+      type: transition
+      to: MossIntervening
+      with_reason: experiment_design_thrashing
+
+  # F: implementation_fix_round[experiment_id] —— 单 experiment 实现修复轮次
+  - id: F
+    name: implementation_fix_round
+    type: map
+    key_type: experiment_id
+    scope: per_experiment
+    range: [0, 3]
+    initial_per_key: 1
+    increment_triggers:
+      - trigger: "TestingExperimentSetup 失败"
+        amount: 1
+        on_missing_key: "create key with value 1"
+    reset_triggers:
+      - trigger: "setup 通过"
+        action: delete_key
+      - trigger: "experiment 丢弃"
+        action: delete_key
+    threshold: 3
+    threshold_action:
+      type: transition
+      to: MossIntervening
+      with_reason: implementation_thrashing
+
+  # G: result_verification_fail_round[result_id] —— 单 attempt 记录核对失败轮次
+  - id: G
+    name: result_verification_fail_round
+    type: map
+    key_type: result_id
+    scope: per_result
+    range: [0, 2]
+    initial_per_key: 1
+    increment_triggers:
+      - trigger: "VerifyingBestResult 失败"
+        amount: 1
+        on_missing_key: "create key with value 1"
+      - trigger: "ComparisonGuardian 报告可修复的 comparison_semantics_changed"
+        amount: 1
+        on_missing_key: "create key with value 1"
+    reset_triggers:
+      - trigger: "result 复验通过"
+        action: delete_key
+      - trigger: "result 丢弃"
+        action: delete_key
+    threshold: 2
+    threshold_action:
+      type: transition
+      to: MossIntervening
+      with_reason: result_suspicious
+
+  # H: research_rework_count —— 会话级研究返工次数(最高级熔断,掀桌子给用户)
+  - id: H
+    name: research_rework_count
+    type: scalar
+    scope: session
+    range: [0, 3]
+    initial: 0
+    increment_triggers:
+      - trigger: "进入 ResearchRework(入口第 1 步,在熔断检查之前 ++)"
+        amount: 1
+    reset_triggers:
+      - trigger: "用户 modify_goal"
+        to: 0
+      - trigger: "新 session"
+        to: 0
+    threshold: 3
+    threshold_action:
+      type: transition
+      to: AwaitingUserDecision
+      with_reason: research_thrashing
+      note: "熔断:H>=3 不进 MOSS,直接掀桌子给用户"
+
+  # I: inconsistency_bounce_count —— 会话级结果与 verified finding 冲突计数
+  - id: I
+    name: inconsistency_bounce_count
+    type: scalar
+    scope: session
+    range: [0, 2]
+    initial: 0
+    increment_triggers:
+      - trigger: "新实验结果与 ResearchMemory 中 verified finding 冲突"
+        amount: 1
+    reset_triggers:
+      - trigger: "冲突解决"
+        to: 0
+      - trigger: "ResearchRework 入口"
+        to: 0
+    threshold: 2
+    threshold_action:
+      type: transition
+      to: MossIntervening
+      with_reason: result_inconsistency
+
+  # J: agent_retry_count[state] —— 每状态独立的基础设施 transient 重试计数
+  - id: J
+    name: agent_retry_count
+    type: map
+    key_type: state_id
+    scope: per_state
+    range: [0, 3]
+    initial_per_key: 0
+    increment_triggers:
+      - trigger: "agent.failed(transient) 在某状态下"
+        amount: 1
+        on_missing_key: "create key with value 1"
+        target_key: current_state
+    reset_triggers:
+      - trigger: "agent 在该状态成功"
+        action: delete_key
+        target_key: current_state
+      - trigger: "状态机离开该状态(任何原因)"
+        action: delete_key
+        target_key: departed_state
+      - trigger: "用户从 AwaitingUserDecision(agent_failure) 选 retry_session"
+        action: clear_all_keys
+      - trigger: "用户从 Suspended 恢复"
+        action: clear_all_keys
+    threshold: 3
+    threshold_action:
+      type: upgrade_to_permanent
+      then_transition_to: AwaitingUserDecision
+      with_reason: agent_failure
+    isolation_rule:
+      from: [A, B, C, D, E, F, G, H, I, K, L, M]
+      enforcement: "transient 重试不 increment 任何业务计数器"
+
+  # K: literature_audit_round —— 单次资料审计轮次
+  - id: K
+    name: literature_audit_round
+    type: scalar
+    scope: single_literature_audit
+    range: [0, 2]
+    initial: 0
+    increment_triggers:
+      - trigger: "AuditingLiteratureNovelty 判定证据不足"
+        amount: 1
+    reset_triggers:
+      - trigger: "审计通过"
+        to: 0
+      - trigger: "用户注入资料"
+        to: 0
+      - trigger: "MOSS 干预完成(literature_novelty_audit_failed)"
+        to: 0
+    threshold: 2
+    threshold_action:
+      type: transition
+      to: MossIntervening
+      with_reason: literature_novelty_audit_failed
+
+  # L: search_diversity_collapse_round —— 当前 hypothesis portfolio 多样性坍缩计数
+  - id: L
+    name: search_diversity_collapse_round
+    type: scalar
+    scope: current_hypothesis_portfolio
+    range: [0, 2]
+    initial: 0
+    increment_triggers:
+      - trigger: "ManagingHypothesisPortfolio 判定 branch 过度集中"
+        amount: 1
+    reset_triggers:
+      - trigger: "portfolio 多样性达标"
+        to: 0
+      - trigger: "人类注入 idea"
+        to: 0
+      - trigger: "MOSS 干预完成(search_diversity_collapse)"
+        to: 0
+    threshold: 2
+    threshold_action:
+      type: transition
+      to: MossIntervening
+      with_reason: search_diversity_collapse
+
+  # M: data_analysis_consensus_round[external_experiment_id] —— 单外部实验数据分析分歧计数
+  - id: M
+    name: data_analysis_consensus_round
+    type: map
+    key_type: external_experiment_id
+    scope: per_external_experiment
+    range: [0, 2]
+    initial_per_key: 1
+    increment_triggers:
+      - trigger: "AnalyzingExternalData 多轨迹分析分歧较大"
+        amount: 1
+        on_missing_key: "create key with value 1"
+    reset_triggers:
+      - trigger: "consensus 清楚"
+        action: delete_key
+      - trigger: "数据重新上传或外部实验丢弃"
+        action: delete_key
+      - trigger: "MOSS 干预完成(data_analysis_consensus_failed)"
+        action: delete_key
+    threshold: 2
+    threshold_action:
+      type: transition
+      to: MossIntervening
+      with_reason: data_analysis_consensus_failed
+
+# ===========================================================================
+# 跨计数器全局规则
+# ===========================================================================
+global_rules:
+  - rule_id: map_reset_delete_key
+    applies_to: [B, D, E, F, G, J, M]
+    statement: "所有 Map 类计数器 reset 一律采用 delete_key 语义,禁止 set_zero"
+    invariant: "key in Map ⟺ 该作用域处于该计数器对应的阶段"
+
+  - rule_id: business_infra_isolation
+    statement: "J 的任何变化不影响 A/B/C/D/E/F/G/H/I/K/L/M"
+    enforcement: "transient retry 路径必须不经过业务计数器更新代码路径"
+
+  - rule_id: hypothesis_discard_deletes_both
+    applies_to: [D, E]
+    statement: "hypothesis 被丢弃时同时删除 D[hypothesis_id] 和 E[hypothesis_id]"

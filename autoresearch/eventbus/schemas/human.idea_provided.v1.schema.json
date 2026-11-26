@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/human.idea_provided.v1.schema.json",
+  "title": "human.idea_provided (v1)",
+  "description": "The human's response at the HumanIdeaCheckpoint state (state machine V1.10 §1): either a plain confirmation (inject=false) or an injected idea seed (inject=true, human_idea_seed_ref pointing at the stored HumanIdeaSeed). Emitted with envelope.emitter == 'Human'.",
+  "type": "object",
+  "required": [
+    "inject"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "inject": {
+      "type": "boolean",
+      "description": "Whether the human is injecting an idea seed (true) or simply confirming to proceed (false)."
+    },
+    "human_idea_seed_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the injected HumanIdeaSeed object. Present only when inject is true."
+    }
+  }
+}

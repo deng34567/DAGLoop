@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/experiment.evaluated.v1.schema.json",
+  "title": "experiment.evaluated (v1)",
+  "description": "EvaluatorAgent has finished evaluating the RunRecord and frozen an EvaluationReport into the Research Store (see agents/evaluator_agent/data-contracts/evaluation_report.schema.yaml). Payload is intentionally minimal: the result is read from the Research Store by ref. EvaluatorAgent's EvaluatingExperiment mode is M12 -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "verdict",
+    "evaluation_report_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["invalid", "valid_not_best", "new_best", "suspicious", "conflict"],
+      "description": "EvaluatorAgent's verdict on the evaluated run."
+    },
+    "evaluation_report_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen EvaluationReport object."
+    },
+    "run_record_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Canonical-content identity of the exact RunRecord evaluated. Optional only for backward compatibility with pre-binding events."
+    }
+  }
+}

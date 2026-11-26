@@ -1,0 +1,53 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/verification_report.schema.yaml"
+title: "VerificationReport"
+description: >
+  Frozen artifact produced after every evaluated attempt. EvaluatorAgent checks
+  that a successful attempt's metric is consistently recorded, or that an
+  invalid attempt carries an observable failure cause. It does not judge
+  statistical significance, seed count, ablation strength, or cheating. Stored as a blob in the
+  Research Store (kind="verification_report"); only its ref is carried in the
+  result.verified event payload.
+
+  Because this schema sets additionalProperties: false, the optional field
+  below (reasoning) is declared nullable: EvaluatorAgent emits it explicitly
+  as null when no value is available, rather than omitting the key.
+type: object
+required:
+  - verdict
+  - checks
+  - anti_cheat_flags
+additionalProperties: false
+properties:
+  verdict:
+    type: string
+    enum: [verified, failed]
+    description: "Whether the attempt record or recorded failure cause is internally consistent."
+  checks:
+    type: array
+    items:
+      type: string
+    description: "Checks performed during verification, may be empty."
+  anti_cheat_flags:
+    type: array
+    items:
+      type: string
+    description: >
+      Legacy field name retained for event/schema compatibility. Verification
+      writes record-consistency errors here when verdict=failed; it does not
+      inspect or copy cheating opinions from EvaluationReport.
+  reasoning:
+    type: [string, "null"]
+    description: "EvaluatorAgent's reasoning for the verdict, or null if not provided."
+  run_record_ref:
+    type: string
+    description: "Host-bound immutable evidence identity for this report."
+  run_record_digest:
+    type: string
+    description: "Host-bound immutable evidence identity for this report."
+  evaluation_report_ref:
+    type: string
+    description: "Host-bound immutable evidence identity for this report."
+  candidate_snapshot_ref:
+    type: string
+    description: "Host-bound immutable evidence identity for this report."

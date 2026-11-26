@@ -1,0 +1,63 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/evidence_audit_report.schema.yaml"
+title: "EvidenceAuditReport"
+description: >
+  Frozen artifact produced by EvidenceAuditAgent: having read the
+  reinterpreted ResearchSpec plus the literature / field-trajectory briefs,
+  EvidenceAuditAgent judges how well each claim is supported by citations.
+  Stored as a blob in the Research Store (kind="evidence_audit_report"); only
+  its ref is carried in the evidence.audited event payload.
+type: object
+required:
+  - claim_citation_matrix
+  - missing_papers
+  - expired_citations
+  - evidence_strength
+additionalProperties: false
+properties:
+  claim_citation_matrix:
+    type: array
+    items:
+      type: object
+      required:
+        - claim
+        - citations
+        - support
+      additionalProperties: false
+      properties:
+        claim:
+          type: string
+          description: "A claim made in the ResearchSpec."
+        citations:
+          type: array
+          items:
+            type: string
+          description: "Citations supporting (or attempting to support) this claim."
+        support:
+          type: string
+          enum:
+            - strong
+            - weak
+            - none
+          description: "How well the citations support this claim."
+    description: "Per-claim mapping of claims to their supporting citations and support strength."
+  missing_papers:
+    type: array
+    items:
+      type: string
+    description: "Relevant papers not covered by the literature brief that should support claims. Empty if none."
+  expired_citations:
+    type: array
+    items:
+      type: string
+    description: "Citations that are outdated relative to more recent work. Empty if none."
+  evidence_strength:
+    type: string
+    enum:
+      - strong
+      - moderate
+      - weak
+    description: "EvidenceAuditAgent's overall judgment of the evidence strength backing the ResearchSpec's claims."
+  notes:
+    type: ["string", "null"]
+    description: "Optional free-form supporting notes for the audit, or null if none."

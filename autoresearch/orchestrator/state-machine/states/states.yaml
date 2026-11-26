@@ -1,0 +1,309 @@
+# AutoResearch 状态全集 (V1.10)
+#
+# 34 个状态:32 个活跃状态 + 2 个终态(Done / Failed)。来源:V1.10 §2。
+# 每个状态:
+#   - id:         状态枚举名(代码用)
+#   - phase:      所属流程段(V1.10 §1 的「第 N 段」)
+#   - role:       该状态下谁在工作 / 等待对象(V1.10 §2「谁在工作」列)
+#   - state_type: working | intervention | awaiting | terminal
+#   - durable:    是否持久化到 SessionState(V1.10 全部 durable)
+#   - note:       V1.10 §2「备注」列
+#
+# 转移规则见 transitions/transitions.yaml;计数器见 counters/counters.yaml;
+# MOSS 动作矩阵见 moss/moss-action-matrix.yaml;用户决策见 user-decisions/reason-matrix.yaml。
+
+version: "v1.10"
+
+states:
+  # ===== 第一段:研究目标确认 + 资料理解与整理 =====
+  - id: ClarifyingResearchGoal
+    phase: requirement
+    role: [ProblemModelingAgent, Human]
+    state_type: working
+    durable: true
+    note: "起点,确认研究目标"
+
+  - id: DeepResearching
+    phase: requirement
+    role: DeepResearchAgent
+    state_type: working
+    durable: true
+    note: "两遍检索(奠基+前沿)+ 领域脉络"
+
+  - id: ReinterpretingSpec
+    phase: requirement
+    role: [ProblemModelingAgent, DeepResearchAgent]
+    state_type: working
+    durable: true
+    note: "基于脉络重解读 spec + scope 闸门"
+
+  - id: AuditingLiteratureNovelty
+    phase: requirement
+    role: [NoveltyAuditAgent, EvidenceAuditAgent]
+    state_type: working
+    durable: true
+    note: "文献可信度和 novelty 审计"
+
+  - id: ModelingProblem
+    phase: requirement
+    role: ProblemModelingAgent
+    state_type: working
+    durable: true
+    note: "建立问题模型"
+
+  - id: HumanIdeaCheckpoint
+    phase: requirement
+    role: Human
+    state_type: awaiting
+    durable: true
+    note: "人类注入方向和品味;介入完成后回 human_checkpoint_return_to"
+
+  - id: CritiquingDirection
+    phase: requirement
+    role: CriticAgent
+    state_type: working
+    durable: true
+    note: "挑方向毛病"
+
+  # ===== phase 3.1: 显式方法步骤 =====
+  - id: GeneratingMethod
+    phase: requirement
+    role: MethodAgent
+    state_type: working
+    durable: true
+    note: "把方向具体化成一个明确的方法(要验证其优点的对象)"
+
+  - id: DeliberatingMethod
+    phase: requirement
+    role: MethodAgent
+    state_type: working
+    durable: true
+    note: "会议①: 方法层有界收敛讨论 proposer<->critic + MOSS 判收敛(注入灵魂)"
+
+  - id: ConfirmingMethod
+    phase: requirement
+    role: Human
+    state_type: human_gate
+    durable: true
+    note: "人工确认方法;注入改动则回炉重生成"
+
+  - id: RevisingMethod
+    phase: experiment
+    role: MethodAgent
+    state_type: working
+    durable: true
+    note: "phase 3.2 外层循环:据实验反馈修方法(不动 setting/metric)"
+
+  # ===== 第二段:选择研究路线 =====
+  - id: RoutingResearchMode
+    phase: track_selection
+    role: ResearchOrchestrator
+    state_type: working
+    durable: true
+    note: "选择任务模式(六种路线)"
+
+  - id: Deliberating
+    phase: track_selection
+    role: DeliberationAgent
+    state_type: working
+    durable: true
+    note: "深思熟虑:MOSS 式 N=2-3 角度独立思考→交叉引用一轮→综合(有界收敛);产出 deliberation_report,失败则 fail-open 直接进 SelectingBenchmark"
+
+  # ===== 第三段:Benchmark 选择与 baseline 复现 =====
+  - id: SelectingBenchmark
+    phase: benchmark
+    role: [DeepResearchAgent, EvaluatorAgent]
+    state_type: working
+    durable: true
+    note: "选择 benchmark"
+
+  - id: PreparingVerifier
+    phase: benchmark
+    role: [EvaluatorAgent, RunnerAgent]
+    state_type: working
+    durable: true
+    note: "冻结 evaluator / metric / split / budget / editable_region(约束 2 硬闸门)"
+
+  - id: ReproducingBaseline
+    phase: benchmark
+    role: RunnerAgent
+    state_type: working
+    durable: true
+    note: "复现 baseline"
+
+  # ===== 第四段:假设生成与挑错 =====
+  - id: GeneratingHypotheses
+    phase: hypothesis
+    role: HypothesisAgent
+    state_type: working
+    durable: true
+    note: "生成候选假设"
+
+  - id: CritiquingHypotheses
+    phase: hypothesis
+    role: CriticAgent
+    state_type: working
+    durable: true
+    note: "挑 hypothesis 毛病"
+
+  - id: ManagingHypothesisPortfolio
+    phase: hypothesis
+    role: ResearchOrchestrator
+    state_type: working
+    durable: true
+    note: "树搜索、分支去重、预算分配"
+
+  # ===== 第五段 A:理论 / 想法扩展 =====
+  - id: DevelopingTheory
+    phase: theory
+    role: HypothesisAgent
+    state_type: working
+    durable: true
+    note: "扩展理论和逻辑"
+
+  - id: ReviewingTheory
+    phase: theory
+    role: CriticAgent
+    state_type: working
+    durable: true
+    note: "审查理论链条"
+
+  # ===== 第五段 B:实验设计与代码实现 =====
+  - id: PlanningExperiment
+    phase: experiment
+    role: ExperimentPlannerAgent
+    state_type: working
+    durable: true
+    note: "设计实验"
+
+  - id: ReviewingExperimentPlan
+    phase: experiment
+    role: [CriticAgent, EvaluatorAgent]
+    state_type: working
+    durable: true
+    note: "审查实验计划"
+
+  - id: PreparingExternalExperiment
+    phase: experiment
+    role: ExperimentPlannerAgent
+    state_type: working
+    durable: true
+    note: "生成外部实验交接包"
+
+  - id: AwaitingExternalExperimentResult
+    phase: experiment
+    role: [Human, Lab]
+    state_type: awaiting
+    durable: true
+    note: "等待真实实验结果上传;不重复提交已开始的外部实验任务"
+
+  - id: AnalyzingExternalData
+    phase: experiment
+    role: DataAnalysisAgent
+    state_type: working
+    durable: true
+    note: "多轨迹数据分析和 consensus"
+
+  - id: ImplementingExperiment
+    phase: experiment
+    role: CoderAgent
+    state_type: working
+    durable: true
+    note: "写最小 patch;只在 VerifierSpec.editable_region 白名单内改"
+
+  - id: TestingExperimentSetup
+    phase: experiment
+    role: RunnerAgent
+    state_type: working
+    durable: true
+    note: "dry-run / sanity check"
+
+  - id: RunningExperiment
+    phase: experiment
+    role: RunnerAgent
+    state_type: working
+    durable: true
+    note: "正式运行实验"
+
+  - id: EvaluatingExperiment
+    phase: experiment
+    role: EvaluatorAgent
+    state_type: working
+    durable: true
+    note: "评估实验结果"
+
+  - id: VerifyingBestResult
+    phase: experiment
+    role: EvaluatorAgent
+    state_type: working
+    durable: true
+    note: "逐次核对成功数值或确认失败原因"
+
+  # ===== 第六段:记忆整合与研究返工 =====
+  - id: ConsolidatingMemory
+    phase: memory
+    role: ResearchOrchestrator
+    state_type: working
+    durable: true
+    note: "更新研究记忆(沉淀 + 发散)"
+
+  - id: ResearchRework
+    phase: memory
+    role: [ProblemModelingAgent, MOSS]
+    state_type: working
+    durable: true
+    note: "研究方向重构;入口 H++,H>=3 → AwaitingUserDecision(research_thrashing)"
+
+  # ===== 元层介入 =====
+  - id: MossIntervening
+    phase: meta
+    role: MOSS
+    state_type: intervention
+    durable: true
+    note: "元层介入;emit moss.intervention_requested,等 moss.intervention_completed 回执"
+
+  # ===== 第七段:报告 =====
+  - id: Reporting
+    phase: report
+    role: ReportAgent
+    state_type: working
+    durable: true
+    note: "生成报告(前置 NoveltyAuditAgent Mode C citation/claim regression 审计)"
+
+  # ===== 横切状态 =====
+  - id: AwaitingUserDecision
+    phase: cross_cutting
+    role: Human
+    state_type: awaiting
+    durable: true
+    note: "等用户决策;emit user_decision_requested 后挂起,等 user_action_received"
+
+  - id: Suspended
+    phase: cross_cutting
+    role: System
+    state_type: awaiting
+    durable: true
+    note: "任何状态可进入,SessionState 完整持久化;恢复后回 previous_state,J 全表清零"
+
+  # ===== 终态 =====
+  - id: Done
+    phase: terminal
+    role: none
+    state_type: terminal
+    durable: true
+    note: "成功或带标注完成;30 天内旁路可重生成报告 / 开新一轮"
+
+  - id: Failed
+    phase: terminal
+    role: none
+    state_type: terminal
+    durable: true
+    note: "放弃或不可恢复失败"
+
+# ===== 元信息 =====
+totals:
+  state_count: 35
+  working: 27
+  intervention: 1
+  awaiting: 4
+  terminal: 2

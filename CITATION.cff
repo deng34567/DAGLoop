@@ -1,0 +1,43 @@
+cff-version: 1.2.0
+message: "If you use DAGLoop, please cite the accompanying paper."
+title: "DAGLoop: Aligning Method Design with Experimental Feedback in Automated AI Research"
+type: software
+license: MIT
+repository-code: "https://github.com/deng34567/DAGLoop"
+url: "https://arxiv.org/abs/2610.25089"
+authors:
+  - family-names: Wang
+    given-names: Dengyuxing
+  - family-names: Zhang
+    given-names: Yonggang
+  - family-names: Cai
+    given-names: Qianshu
+  - family-names: Zheng
+    given-names: Huajiang
+  - family-names: Song
+    given-names: Jun
+  - family-names: Song
+    given-names: Yangqiu
+  - family-names: Guo
+    given-names: Yike
+preferred-citation:
+  type: article
+  title: "DAGLoop: Aligning Method Design with Experimental Feedback in Automated AI Research"
+  authors:
+    - family-names: Wang
+      given-names: Dengyuxing
+    - family-names: Zhang
+      given-names: Yonggang
+    - family-names: Cai
+      given-names: Qianshu
+    - family-names: Zheng
+      given-names: Huajiang
+    - family-names: Song
+      given-names: Jun
+    - family-names: Song
+      given-names: Yangqiu
+    - family-names: Guo
+      given-names: Yike
+  year: 2026
+  journal: arXiv
+  url: "https://arxiv.org/abs/2610.25089"

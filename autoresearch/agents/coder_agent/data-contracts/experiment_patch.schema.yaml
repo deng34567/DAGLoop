@@ -1,0 +1,48 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/experiment_patch.schema.yaml"
+title: "ExperimentPatch"
+description: >
+  Frozen artifact produced by CoderAgent (AutoResearch state machine V1.10):
+  the concrete code implementation of the frozen ExperimentPlan (see
+  agents/experiment_planner_agent/data-contracts/experiment_plan.schema.yaml).
+  Stored as a blob in the Research Store (kind="experiment_patch"); only its
+  ref is carried in the code.implemented event payload. Unlike ExperimentPlan,
+  `changes[].patch` intentionally HOLDS CODE (a diff/patch) -- CoderAgent's
+  job is to write code, so no no-code guard applies here.
+"$defs":
+  Change:
+    type: object
+    required:
+      - file
+      - patch
+    additionalProperties: false
+    properties:
+      file:
+        type: string
+        description: "Path to the file this change targets."
+      patch:
+        type: string
+        description: "The code diff/patch applied to this file."
+type: object
+required:
+  - summary
+  - changes
+  - touched_files
+additionalProperties: false
+properties:
+  hypothesis_id:
+    type: string
+    description: "ID (within the HypothesisBank) of the hypothesis this experiment patch implements."
+  summary:
+    type: string
+    description: "High-level summary of the implemented change(s)."
+  changes:
+    type: array
+    items:
+      "$ref": "#/$defs/Change"
+    description: "List of per-file code changes."
+  touched_files:
+    type: array
+    items:
+      type: string
+    description: "Paths of all files touched by this patch."

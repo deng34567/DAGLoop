@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/research_spec.ready.v1.schema.json",
+  "title": "research_spec.ready (v1)",
+  "description": "ProblemModelingAgent has finished the ClarifyingResearchGoal dialogue and frozen a ResearchSpec into the Research Store. ResearchOrchestrator uses this to transition ClarifyingResearchGoal -> DeepResearching (state machine V1.10 §1). Payload is intentionally minimal: the ResearchSpec itself (see agents/problem_modeling_agent/data-contracts/research_spec.schema.yaml) is read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "research_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchSpec object."
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/data_analysis.ready.v1.schema.json",
+  "title": "data_analysis.ready (v1)",
+  "description": "DataAnalysisAgent has finished analyzing the uploaded external dataset and frozen an ExternalDataAnalysisReport into the Research Store (see agents/data_analysis_agent/data-contracts/external_data_analysis_report.schema.yaml). Payload is intentionally minimal: the report is read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "external_data_analysis_report_ref",
+    "consensus_status"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "external_data_analysis_report_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ExternalDataAnalysisReport object."
+    },
+    "consensus_status": {
+      "type": "string",
+      "enum": [
+        "converged",
+        "diverged"
+      ],
+      "description": "Whether the analyzed trajectories converged on a consensus conclusion or diverged."
+    }
+  }
+}

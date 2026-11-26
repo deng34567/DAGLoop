@@ -1,0 +1,6 @@
+{
+  "reason": "loop detected: CoderAgent repeated the same failing patch 3 times",
+  "counter_snapshot": {
+    "coder_retry_count": 3
+  }
+}

@@ -1,0 +1,282 @@
+# AutoResearch MOSS 处理动作矩阵 (V1.10 §6)
+#
+# Orchestrator 持有 (current_moss_reason × action) → next_state 的查表。
+# Orchestrator 不持有「MOSS 怎么选 action」的逻辑——那是 MOSS 内部的事。
+#
+# 14 个 reason(V1.10 §6 表)。action 枚举是本查表的稳定契约。
+# with_reason:仅当 next_state == AwaitingUserDecision 时给出目标 user-decision reason。
+#
+# 出 MossIntervening 时:current_moss_reason 清空;写入 moss_interventions;
+# 若 MOSS 丢弃 result / hypothesis,同步删除对应计数器 key(见 counters.yaml)。
+
+version: "v1.10"
+
+MossActionMatrix:
+
+  - reason: agent_failure
+    actions:
+      - action: retry_failed_state
+        next_state: "{failed_state}"
+        note: "根据实际失败证据重试原状态；不重置任何实验、方法或预算计数"
+      - action: escalate_to_user
+        next_state: AwaitingUserDecision
+        with_reason: agent_failure
+        note: "MOSS 无法在现有授权和动作范围内安全恢复时才升级人类"
+
+  - reason: direction_thrashing
+    actions:
+      - action: rewrite_framing
+        counter_updates: ["A reset to 0"]
+        next_state: ModelingProblem
+        note: "重写 problem framing / 缩小范围"
+      - action: request_human_direction
+        counter_updates: ["A reset to 0"]
+        next_state: HumanIdeaCheckpoint
+        note: "要求人类注入方向"
+      - action: escalate_to_user
+        next_state: AwaitingUserDecision
+        with_reason: direction_thrashing
+
+  - reason: literature_novelty_audit_failed
+    actions:
+      - action: targeted_search
+        counter_updates: ["K reset to 0"]
+        next_state: DeepResearching
+        note: "指定 targeted search"
+      - action: request_human_papers
+        next_state: HumanIdeaCheckpoint
+        note: "要求人类提供核心论文"
+      - action: accept_caveat
+        next_state: ConfirmingMethod
+        note: "MOSS 已接受文献不确定性并保留报告 caveat；不再要求无人值守运行重复确认"
+
+  - reason: baseline_reproduction_thrashing
+    actions:
+      - action: fix_environment
+        next_state: AwaitingUserDecision
+        with_reason: baseline_unreproducible
+        note: "暂停等待真实环境修复；MOSS 不得用原命令重跑来冒充修复"
+      - action: change_benchmark
+        counter_updates: ["B delete key current_benchmark_id"]
+        next_state: SelectingBenchmark
+        note: "换 benchmark"
+      - action: downgrade_to_replication_report
+        next_state: Reporting
+        note: "降级为 replication failure report"
+      - action: escalate_to_user
+        next_state: AwaitingUserDecision
+        with_reason: baseline_unreproducible
+
+  - reason: verifier_invalid
+    actions:
+      - action: rewrite_verifier
+        next_state: PreparingVerifier
+        note: "重写 verifier"
+      - action: change_benchmark
+        counter_updates: ["B delete key current_benchmark_id"]
+        next_state: SelectingBenchmark
+        note: "换 benchmark"
+      - action: switch_to_theory
+        next_state: DevelopingTheory
+        note: "转理论模式"
+      - action: escalate_to_user
+        next_state: AwaitingUserDecision
+        with_reason: verifier_missing
+
+  - reason: hypothesis_stagnation
+    actions:
+      - action: add_literature
+        counter_updates: ["C reset to 0"]
+        next_state: DeepResearching
+        note: "加资料"
+      - action: change_search_space
+        counter_updates: ["C reset to 0"]
+        next_state: GeneratingHypotheses
+        note: "加约束 / 换搜索空间"
+      - action: request_human_seed
+        counter_updates: ["C reset to 0"]
+        next_state: HumanIdeaCheckpoint
+        note: "要求人类 seed idea"
+      - action: escalate_to_user
+        next_state: AwaitingUserDecision
+        with_reason: hypothesis_stagnation
+
+  - reason: search_diversity_collapse
+    actions:
+      - action: expand_branch_seed
+        counter_updates: ["L reset to 0"]
+        next_state: GeneratingHypotheses
+        note: "扩大 branch seed / 引入对立假设"
+      - action: switch_tree_policy
+        counter_updates: ["L reset to 0"]
+        next_state: ManagingHypothesisPortfolio
+        note: "切换 tree search policy"
+      - action: request_human_seed
+        counter_updates: ["L reset to 0"]
+        next_state: HumanIdeaCheckpoint
+        note: "要求人类 seed idea"
+      - action: escalate_to_user
+        next_state: AwaitingUserDecision
+        with_reason: search_space_collapse
+
+  - reason: theory_thrashing
+    actions:
+      - action: add_definitions
+        counter_updates: ["D delete key current_hypothesis_id"]
+        next_state: DevelopingTheory
+        note: "补定义 / 找反例"
+      - action: back_to_hypothesis
+        next_state: GeneratingHypotheses
+        note: "改证明方向,回 hypothesis"
+      - action: switch_to_experiment
+        next_state: PlanningExperiment
+        note: "转实验验证"
+
+  - reason: experiment_design_thrashing
+    actions:
+      - action: simplify_experiment
+        counter_updates: ["E delete key current_hypothesis_id"]
+        next_state: PlanningExperiment
+        note: "拆小实验 / 固定 evaluator"
+      - action: revise_component
+        counter_updates: ["E delete key current_hypothesis_id"]
+        next_state: DeliberatingMethod
+        note: "审查证据指向冻结组件设计或验收矛盾时，保留方法和基准，重审 ComponentPlan"
+      - action: change_metric
+        # 会议 2026-07-25 item 8:"结果不对"不该打回 A(ModelingProblem 重建整个问题),最多打回 A′。
+        # 指标由 method 定义,故退到 RevisingMethod(两层环外层)——修方法(含其度量)后重规划实验,
+        # 而非从头重解问题。
+        next_state: RevisingMethod
+        note: "改 metric:退到 A′(RevisingMethod),经方法修订调整度量,不回 A"
+      - action: back_to_hypothesis
+        next_state: GeneratingHypotheses
+        note: "回 hypothesis"
+      - action: escalate_to_user
+        next_state: AwaitingUserDecision
+        with_reason: experiment_design_thrashing
+
+  # 会议② (2026-07-31): the method is FALSIFIED -- settings were tuned (inner, cap 3) AND the method
+  # revised (outer, cap 3), still no advantage. While swap budget remains, MOSS must SWAP for a
+  # fundamentally different method. The engine reports directly once method_swap_round reaches
+  # _METHOD_SWAP_CAP, so exposing report_now here would let MOSS terminate the large loop early.
+  - reason: method_not_working
+    actions:
+      - action: rethink_method
+        next_state: GeneratingMethod
+        note: "换一个全新方法:调设置+改方法都没赢=方法不 work,回 GeneratingMethod 提一个根本不同的方法"
+
+  # 会议 2026-08-13: the method's components each DECLARE a gain/functional expectation checkpoint.
+  # When a run completes but does not improve, CHECK-EXPECTATION verifies every declared component;
+  # an unmet/partial component reaches MOSS with measured actual-vs-expected evidence. This is the
+  # ONLY route from the experiment/
+  # verify layer back UP to the method layer, and it is MOSS-gated by design (只有 MOSS 决定回 method).
+  # WHEN to go back: a specific component is implicated (ablation-checkpoint level), so prefer a
+  # TARGETED fix (RevisingMethod) over a whole-method swap; escalate to a new method only if the
+  # component is fundamental. WHEN NOT to go back: the components verify fine / the shortfall is not
+  # attributable to a declared component -> stay in the experiment layer (tune) or report honestly.
+  # Bounded by component_revision_round (_COMPONENT_REVISION_CAP) so it cannot loop forever.
+  # The engine reports directly when that cap is exhausted; do not expose report_now here,
+  # otherwise MOSS can terminate the large method loop while revision budget remains.
+  - reason: component_ablation_failed
+    actions:
+      - action: revise_component
+        next_state: DeliberatingMethod
+        note: "消融暴露组件计划、依赖或验收问题:保留已确认方法和有效组件,定向重审 ComponentPlan"
+      - action: revise_method
+        next_state: RevisingMethod
+        note: "绑定消融证伪已确认 Method 的核心机制:保留有效证据,修订当前 Method 后重新规划组件"
+
+  - reason: implementation_thrashing
+    actions:
+      - action: revalidate_baseline
+        next_state: ReproducingBaseline
+        note: "执行证据表明冻结基准的环境或测量条件需修复：保留方法和历史，重新复现基准，不改任务"
+      - action: shrink_patch
+        counter_updates: ["F delete key current_experiment_id"]
+        next_state: ImplementingExperiment
+        note: "缩小 patch / 加工具 / 换实现策略"
+      - action: change_plan
+        next_state: PlanningExperiment
+        note: "回实验计划"
+      - action: discard_hypothesis
+        counter_updates:
+          - "D delete key current_hypothesis_id"
+          - "E delete key current_hypothesis_id"
+          - "F delete key current_experiment_id"
+        next_state: ConsolidatingMemory
+        note: "丢弃 hypothesis,沉淀 negative result"
+      - action: escalate_to_user
+        next_state: AwaitingUserDecision
+        with_reason: implementation_thrashing
+
+  - reason: result_suspicious
+    actions:
+      - action: discard_result
+        counter_updates: ["G delete key current_result_id"]
+        next_state: ConsolidatingMemory
+        note: "丢弃结果"
+      - action: strict_rerun
+        next_state: RunningExperiment
+        note: "strict rerun"
+      - action: add_holdout
+        next_state: VerifyingBestResult
+        note: "加 holdout 复验"
+      - action: escalate_to_user
+        next_state: AwaitingUserDecision
+        with_reason: result_suspicious
+
+  - reason: data_analysis_consensus_failed
+    actions:
+      - action: tighten_analysis
+        counter_updates: ["M delete key current_external_experiment_id"]
+        next_state: AnalyzingExternalData
+        note: "收紧分析计划 / 丢弃异常 trajectory"
+      - action: human_data_review
+        next_state: HumanIdeaCheckpoint
+        note: "加 human data review"
+      - action: accept_caveat
+        next_state: EvaluatingExperiment
+        note: "接受 caveat 继续评估"
+      - action: escalate_to_user
+        next_state: AwaitingUserDecision
+        with_reason: analysis_consensus_uncertain
+
+  - reason: result_inconsistency
+    actions:
+      - action: reverify_old_finding
+        next_state: VerifyingBestResult
+        note: "复验旧结论"
+      - action: rollback_new_finding
+        next_state: ConsolidatingMemory
+        note: "回滚新结论 / 标记冲突"
+      - action: research_rework
+        next_state: ResearchRework
+        note: "研究返工"
+
+  - reason: benchmark_too_narrow
+    actions:
+      - action: add_benchmark
+        next_state: SelectingBenchmark
+        note: "增加 benchmark"
+      - action: broaden_hypotheses
+        next_state: GeneratingHypotheses
+        note: "换 benchmark / 扩大探索"
+      - action: switch_to_theory
+        next_state: DevelopingTheory
+        note: "转 IdeaTheory Mode"
+
+  - reason: protocol_violation
+    actions:
+      - action: rollback_patch
+        next_state: ImplementingExperiment
+        note: "回滚 patch"
+      - action: fix_prompt
+        guard: "policy_violation_history[(agent_name, violation_type)] < 2"
+        side_effects:
+          - "policy_violation_history[(agent_name, violation_type)] ++"
+        next_state: ImplementingExperiment
+        note: "修正 prompt 后重试;同一 (agent, violation_type) 第 2 次触发时 guard 失效,走 escalate"
+      - action: escalate_to_user
+        next_state: AwaitingUserDecision
+        with_reason: protocol_violation
+        note: "升级人类"

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/experiment.run_completed.v1.schema.json",
+  "title": "experiment.run_completed (v1)",
+  "description": "RunnerAgent has finished running the ExperimentPatch and frozen a RunRecord into the Research Store (see agents/runner_agent/data-contracts/run_record.schema.yaml). Payload is intentionally minimal: the result is read from the Research Store by ref. RunnerAgent's RunningExperiment mode is M11 -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "verdict",
+    "run_record_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["succeeded", "failed"],
+      "description": "RunnerAgent's verdict on whether the experiment run succeeded."
+    },
+    "run_record_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen RunRecord object."
+    }
+  }
+}

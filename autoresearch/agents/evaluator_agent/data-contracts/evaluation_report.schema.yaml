@@ -1,0 +1,54 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/evaluation_report.schema.yaml"
+title: "EvaluationReport"
+description: >
+  Frozen artifact produced by EvaluatorAgent's EvaluatingExperiment mode
+  (AutoResearch state machine V1.10): having read the frozen RunRecord under
+  the frozen BenchmarkSpec and VerifierSpec, EvaluatorAgent evaluates the run
+  and records its verdict. Stored as a blob in the Research Store
+  (kind="evaluation_report"); only its ref is carried in the
+  experiment.evaluated event payload.
+
+  Because this schema sets additionalProperties: false, the optional fields
+  below (metric_value, baseline_metric, reasoning) are declared nullable:
+  EvaluatorAgent emits them explicitly as null when no value is available,
+  rather than omitting the key.
+type: object
+required:
+  - verdict
+  - is_improvement
+  - suspicious
+  - anti_cheat_flags
+additionalProperties: false
+properties:
+  verdict:
+    type: string
+    enum: [invalid, valid_not_best, new_best, suspicious, conflict]
+    description: "EvaluatorAgent's verdict on the evaluated run."
+  metric_value:
+    type: [number, "null"]
+    description: "The metric value observed for this run, or null if none was produced."
+  baseline_metric:
+    type: [number, "null"]
+    description: "The baseline metric value the run is compared against, or null if unavailable."
+  is_improvement:
+    type: boolean
+    description: "Whether the run's metric constitutes an improvement over the baseline."
+  suspicious:
+    type: boolean
+    description: "Whether EvaluatorAgent flagged the result as suspicious (possible anti-cheat concern)."
+  anti_cheat_flags:
+    type: array
+    items:
+      type: string
+    description: "Anti-cheat concerns raised during evaluation, may be empty."
+  reasoning:
+    type: [string, "null"]
+    description: "EvaluatorAgent's reasoning for the verdict, or null if not provided."
+  run_record_digest:
+    type: string
+    pattern: "^sha256:[0-9a-f]{64}$"
+    description: "Immutable canonical-content identity of the RunRecord evaluated by this report."
+  run_record_ref:
+    type: string
+    description: "Host-bound immutable evidence identity for this report."

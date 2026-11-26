@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/problem_modeling.model_requested.v1.schema.json",
+  "title": "problem_modeling.model_requested (v1)",
+  "description": "Following NoveltyAuditAgent's audit: ResearchOrchestrator instructs ProblemModelingAgent to proceed with modeling based on the frozen ResearchSpec, LiteratureBrief, and NoveltyAuditReport. Payload is intentionally minimal: all three artifacts are read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "research_spec_ref",
+    "literature_brief_ref",
+    "novelty_audit_report_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ResearchSpec object."
+    },
+    "literature_brief_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen LiteratureBrief object."
+    },
+    "novelty_audit_report_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen NoveltyAuditReport object."
+    },
+    "human_idea_seed_ref": {
+      "type": ["string", "null"],
+      "description": "Optional human redirection to incorporate while rebuilding the problem model."
+    }
+  }
+}

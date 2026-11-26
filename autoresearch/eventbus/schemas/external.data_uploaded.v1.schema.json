@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/external.data_uploaded.v1.schema.json",
+  "title": "external.data_uploaded (v1)",
+  "description": "The human has uploaded external experiment data for a LabInTheLoop external experiment. Emitted with envelope.emitter == 'Human'.",
+  "type": "object",
+  "required": [
+    "external_data_upload_ref",
+    "external_experiment_id",
+    "complete"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "external_data_upload_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the uploaded external dataset."
+    },
+    "external_experiment_id": {
+      "type": "string",
+      "description": "Id of the external experiment this upload belongs to."
+    },
+    "complete": {
+      "type": "boolean",
+      "description": "Whether this upload completes the external experiment's data collection (true) or is a partial/incremental upload (false)."
+    }
+  }
+}

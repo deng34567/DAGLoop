@@ -1,0 +1,67 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/deliberation_report.schema.yaml"
+title: "DeliberationReport"
+description: >
+  Frozen artifact produced by DeliberationAgent's BOUNDED deep-deliberation step
+  (professor's MOSS-style multi-agent cross-reference). After a direction is chosen
+  and before SelectingBenchmark, N=2-3 angle-agents each produce an independent take
+  (round 1), then revise once given the OTHER angles' takes (round 2, cross-reference),
+  and a synthesis pass cross-examines them into one deeper conclusion (chosen approach
+  + expected baseline + where the angles converged/diverged). Bounded by construction:
+  fixed N and a single cross-reference round -> converges. FAIL-OPEN: if deliberation
+  cannot run, a minimal report (empty angles, a short synthesis note) is still emitted so
+  the flow proceeds to SelectingBenchmark. Stored as a blob (kind="deliberation_report");
+  only its ref is carried in deliberation.ready.
+"$defs":
+  AngleTake:
+    type: object
+    required:
+      - angle
+      - approach
+    additionalProperties: false
+    properties:
+      angle:
+        type: string
+        description: "The distinct lens, e.g. theory-first / empirical-baseline-first / failure-mode-risk-first."
+      approach:
+        type: string
+        description: "This angle's proposed approach/direction for the chosen research goal."
+      supporting:
+        type: string
+        description: "Known theory / prior results this angle leans on."
+      expected_baseline:
+        type: string
+        description: "The baseline this angle expects to compare against (name + rough level)."
+      revised:
+        type: string
+        description: "This angle's revision after seeing the other angles' takes (round 2). Empty if unrevised."
+type: object
+required:
+  - synthesis
+  - angles
+additionalProperties: false
+properties:
+  angles:
+    type: array
+    items:
+      "$ref": "#/$defs/AngleTake"
+    description: "The N angle takes (after the cross-reference round). May be empty in the fail-open minimal report."
+  convergence:
+    type: array
+    items:
+      type: string
+    description: "Points the angles agreed on."
+  divergence:
+    type: array
+    items:
+      type: string
+    description: "Points the angles disagreed on (kept explicit, not averaged away)."
+  chosen_direction:
+    type: string
+    description: "The synthesized, cross-examined direction to pursue."
+  chosen_baseline_hint:
+    type: string
+    description: "The synthesized expected baseline to reproduce/compare against, feeding SelectingBenchmark."
+  synthesis:
+    type: string
+    description: "Narrative synthesis of the deliberation: the deeper conclusion after cross-reference."

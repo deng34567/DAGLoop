@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/benchmark.spec_ready.v1.schema.json",
+  "title": "benchmark.spec_ready (v1)",
+  "description": "EvaluatorAgent has finished selecting/preparing a benchmark and frozen a BenchmarkSpec into the Research Store (see agents/evaluator_agent/data-contracts/benchmark_spec.schema.yaml). Payload is intentionally minimal: the spec is read from the Research Store by ref. EvaluatorAgent itself is out of scope for this task (M7) -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "benchmark_spec_ref",
+    "benchmark_id"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "benchmark_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen BenchmarkSpec object."
+    },
+    "benchmark_id": {
+      "type": "string",
+      "description": "Stable identifier of the selected benchmark, mirroring BenchmarkSpec.benchmark_id."
+    }
+  }
+}

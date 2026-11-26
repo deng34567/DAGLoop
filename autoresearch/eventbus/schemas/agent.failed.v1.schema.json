@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/agent.failed.v1.schema.json",
+  "title": "agent.failed (v1)",
+  "description": "Cross-cutting event: an agent failed in some way. Triggers ResearchOrchestrator's agent-failure-routing cross-cutting layer (transient/permanent/policy_violation branches).",
+  "type": "object",
+  "required": [
+    "agent_name",
+    "reason_classification",
+    "underlying_reason"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "agent_name": {
+      "type": "string",
+      "enum": [
+        "ProblemModelingAgent",
+        "DeepResearchAgent",
+        "KnowledgeIndexAgent",
+        "NoveltyAuditAgent",
+        "HypothesisAgent",
+        "CriticAgent",
+        "EvaluatorAgent",
+        "ExperimentPlannerAgent",
+        "CoderAgent",
+        "RunnerAgent",
+        "ReportAgent",
+        "MOSS",
+        "MemoryAgent",
+        "EvidenceAuditAgent",
+        "RankingJudgeAgent",
+        "DataAnalysisAgent",
+        "MethodAgent",
+        "MossWatchdog"
+      ],
+      "description": "Which agent failed. ResearchOrchestrator itself is excluded (it is the consumer, not an emitter of agent.failed)."
+    },
+    "reason_classification": {
+      "type": "string",
+      "enum": [
+        "transient",
+        "permanent",
+        "policy_violation"
+      ],
+      "description": "How the failure should be routed. transient -> retry with a retry counter. permanent -> route to a user/human decision point. policy_violation -> MOSS first time, escalate second."
+    },
+    "underlying_reason": {
+      "type": "string",
+      "description": "Free-form description of why the agent failed (e.g. 'LLM 5xx', 'output malformed', 'timeout'). Used for diagnostics and MOSS analysis."
+    },
+    "violation_type": {
+      "type": "string",
+      "description": "Only present when reason_classification == 'policy_violation'. Used as part of the policy_violation_history key (agent_name, violation_type)."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "reason_classification": {
+            "const": "policy_violation"
+          }
+        },
+        "required": [
+          "reason_classification"
+        ]
+      },
+      "then": {
+        "required": [
+          "violation_type"
+        ]
+      }
+    }
+  ]
+}

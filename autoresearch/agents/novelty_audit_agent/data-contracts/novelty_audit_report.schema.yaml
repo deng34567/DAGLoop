@@ -1,0 +1,162 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/novelty_audit_report.schema.yaml"
+title: "NoveltyAuditReport"
+description: >
+  Frozen artifact produced by NoveltyAuditAgent: having read the reinterpreted
+  ResearchSpec plus the literature / field-trajectory briefs, NoveltyAuditAgent
+  judges whether the proposed work is novel relative to prior literature.
+  Stored as a blob in the Research Store (kind="novelty_audit_report"); only
+  its ref is carried in the novelty.audit_ready event payload.
+type: object
+required:
+  - verdict
+  - citation_sufficiency
+  - novelty_status
+additionalProperties: false
+properties:
+  verdict:
+    type: string
+    enum:
+      - pass
+      - evidence_insufficient
+      - not_novel
+      - not_feasible
+    description: "NoveltyAuditAgent's overall verdict, judging BOTH novelty and feasibility (meeting 2026-07-25 item 9): pass = novel enough AND feasible; evidence_insufficient = the literature evidence was insufficient to judge novelty; not_feasible = the method fails a feasibility/合理性 criterion (relevance to the problem, freedom from obvious logic flaws, or implementability). evidence_insufficient and not_feasible both route back to re-derive the method."
+  citation_sufficiency:
+    type: string
+    description: "Assessment of whether the surveyed literature adequately covers the topic's citation landscape."
+  stale_citations:
+    type: array
+    items:
+      type: string
+    description: "Citations in the literature brief that are outdated relative to more recent work. Empty if none."
+  unsupported_claims:
+    type: array
+    items:
+      type: string
+    description: "Claims in the ResearchSpec that lack literature support. Empty if none."
+  missing_work:
+    type: array
+    items:
+      type: string
+    description: "Relevant prior work not covered by the literature brief. Empty if none."
+  novelty_status:
+    type: string
+    enum:
+      - novel
+      - known
+      - incremental
+      - uncertain
+    description: "NoveltyAuditAgent's judgment of the proposed work's novelty relative to prior literature."
+  method_signature:
+    type: object
+    additionalProperties: false
+    required: [primary_core]
+    properties:
+      primary_core:
+        type: object
+        additionalProperties: false
+        required: [core_id, intervention, causal_mechanism, pipeline_role, expected_effect]
+        properties:
+          core_id: {type: string, minLength: 1}
+          intervention: {type: string, minLength: 1}
+          causal_mechanism: {type: string, minLength: 1}
+          pipeline_role: {type: string, minLength: 1}
+          expected_effect: {type: string, minLength: 1}
+      supporting_components:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [name, role]
+          properties:
+            name: {type: string, minLength: 1}
+            role: {type: string, minLength: 1}
+      composition_claim:
+        type: object
+        additionalProperties: false
+        required: [material, mechanism]
+        properties:
+          material: {type: boolean}
+          mechanism: {type: string}
+  prior_work_comparisons:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - prior_work_id
+        - primary_core_relation
+        - evidence
+      properties:
+        prior_work_id: {type: string, minLength: 1}
+        primary_core_relation:
+          type: string
+          enum: [same, different, unknown, equivalent, subsumes, overlaps, distinct]
+        difference_scope:
+          type: string
+          enum: [none, supporting_only, application_only, material_core, unknown]
+        composition_relation:
+          type: string
+          enum: [equivalent, subsumes, overlaps, distinct, unknown, not_applicable]
+        supporting_overlap:
+          type: array
+          items: {type: string}
+        evidence:
+          type: array
+          minItems: 1
+          items: {type: string, minLength: 1}
+  retrieval_coverage:
+    type: object
+    additionalProperties: false
+    required: [covered_core_ids, compared_prior_work_ids, unresolved_candidates]
+    properties:
+      covered_core_ids:
+        type: array
+        items: {type: string, minLength: 1}
+      compared_prior_work_ids:
+        type: array
+        items: {type: string, minLength: 1}
+      unresolved_candidates:
+        type: array
+        items: {type: string}
+  harness_decision:
+    type: object
+    additionalProperties: false
+    required: [novelty_status, verdict, decisive_prior_work_ids, rationale]
+    properties:
+      novelty_status:
+        type: string
+        enum: [novel, known, incremental, uncertain]
+      verdict:
+        type: string
+        enum: [pass, evidence_insufficient, not_novel]
+      decisive_prior_work_ids:
+        type: array
+        items: {type: string}
+      rationale: {type: string, minLength: 1}
+  feasibility_status:
+    type: string
+    enum:
+      - feasible
+      - infeasible
+      - uncertain
+    description: "meeting 2026-07-25 item 9: NoveltyAuditAgent's feasibility/合理性 judgment of the proposed METHOD, interacting with novelty. feasible = passes all feasibility criteria; infeasible = fails at least one; uncertain = cannot tell yet."
+  feasibility_findings:
+    type: object
+    additionalProperties: false
+    description: "meeting 2026-07-25 item 9: per-criterion feasibility findings for the proposed method (each true = criterion satisfied)."
+    properties:
+      relevant_to_problem:
+        type: boolean
+        description: "The method actually targets the confirmed problem goal, not a drifted or easier proxy problem."
+      no_obvious_logic_flaw:
+        type: boolean
+        description: "The method has no known hard flaw / self-contradiction / already-refuted premise."
+      implementable:
+        type: boolean
+        description: "The method can be really implemented with the available repo/tools/compute within budget, without depending on non-existent resources or data."
+  notes:
+    type: string
+    description: "Free-form supporting notes for the audit."

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/experiment.evaluation_requested.v1.schema.json",
+  "title": "experiment.evaluation_requested (v1)",
+  "description": "ResearchOrchestrator instructs EvaluatorAgent to evaluate the frozen RunRecord against the frozen BenchmarkSpec under the frozen VerifierSpec's protocol (EvaluatingExperiment state, state machine V1.10). EvaluatorAgent's EvaluatingExperiment mode is M12 -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "anyOf": [
+    {"required": ["benchmark_spec_ref"], "properties": {"benchmark_spec_ref": {"type": "string"}}},
+    {"required": ["spec_interpretation_ref"], "properties": {"spec_interpretation_ref": {"type": "string"}}}
+  ],
+  "required": [
+    "run_record_ref",
+    "verifier_spec_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "run_record_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen RunRecord object to be evaluated."
+    },
+    "verifier_spec_ref": {
+      "type": ["string", "null"],
+      "description": "Optional frozen VerifierSpec ref; null when evaluation is grounded by the reproduced baseline and BenchmarkSpec."
+    },
+    "benchmark_spec_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the frozen BenchmarkSpec object the run is evaluated against."
+    },
+    "baseline_result_ref": {
+      "type": ["string", "null"],
+      "description": "Optional ref to the already accepted frozen BaselineResult. It supplies the authoritative baseline-side conditions for comparison auditing."
+    },
+    "research_memory_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref into the Research Store resolving to the prior ResearchMemory to ground the evaluation in, or null if none exists yet."
+    },
+    "spec_interpretation_ref": {
+      "type": ["string", "null"],
+      "description": "Optional SpecInterpretation carrying a survey validation study."
+    }
+  }
+}

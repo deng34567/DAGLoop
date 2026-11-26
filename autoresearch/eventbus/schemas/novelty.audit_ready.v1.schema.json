@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/novelty.audit_ready.v1.schema.json",
+  "title": "novelty.audit_ready (v1)",
+  "description": "NoveltyAuditAgent has finished auditing the reinterpreted ResearchSpec against prior literature and frozen a NoveltyAuditReport into the Research Store (see agents/novelty_audit_agent/data-contracts/novelty_audit_report.schema.yaml). Payload is intentionally minimal: the report is read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "verdict",
+    "novelty_audit_report_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["pass", "evidence_insufficient", "not_novel", "not_feasible"],
+      "description": "NoveltyAuditAgent's verdict, mirroring NoveltyAuditReport.verdict."
+    },
+    "novelty_audit_report_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen NoveltyAuditReport object."
+    },
+    "targeted_search_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    }
+  }
+}

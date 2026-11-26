@@ -1,0 +1,5 @@
+{
+  "verdict": "some_pass",
+  "critique_report_ref": "critique_report://sess-123/final",
+  "passing_hypothesis_ids": ["H1", "H3"]
+}

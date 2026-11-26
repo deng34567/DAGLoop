@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/ranking.requested.v1.schema.json",
+  "title": "ranking.requested (v1)",
+  "description": "ResearchOrchestrator instructs RankingJudgeAgent to rank candidates of a given kind. `candidate_ids` is optional: when absent, RankingJudgeAgent ranks all candidates found in `source_ref`. RankingJudgeAgent itself is out of scope for this task -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "candidate_kind",
+    "source_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "candidate_kind": {
+      "type": "string",
+      "enum": [
+        "hypothesis"
+      ],
+      "description": "Kind of candidate being ranked. Only 'hypothesis' is supported for now; 'benchmark' is deferred."
+    },
+    "candidate_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Optional subset of candidate ids to rank. Absent means: rank all candidates found in source_ref."
+    },
+    "source_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the object containing the candidates to rank (e.g. a HypothesisBank)."
+    }
+  }
+}

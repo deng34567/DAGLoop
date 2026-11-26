@@ -1,0 +1,61 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/benchmark_spec.schema.yaml"
+title: "BenchmarkSpec"
+description: >
+  Frozen artifact produced by EvaluatorAgent's benchmark-selection pass
+  (AutoResearch state machine V1.10): having read the frozen ResearchSpec and
+  LiteratureBrief, EvaluatorAgent selects/prepares a concrete benchmark to
+  evaluate candidate solutions against. Stored as a blob in the Research
+  Store (kind="benchmark_spec"); only its ref is carried in the
+  benchmark.spec_ready event payload.
+"$defs":
+  Baseline:
+    type: object
+    required:
+      - command
+    additionalProperties: false
+    properties:
+      command:
+        type: string
+        description: "Shell command that runs the baseline implementation."
+      reported_metric:
+        type: number
+        description: "The baseline's previously-reported metric value, if known."
+type: object
+required:
+  - benchmark_id
+  - name
+  - metric
+  - run_command
+  - baseline
+additionalProperties: false
+properties:
+  benchmark_id:
+    type: string
+    description: "Stable identifier for the selected benchmark."
+  name:
+    type: string
+    description: "Human-readable benchmark name."
+  baseline:
+    "$ref": "#/$defs/Baseline"
+    description: "The baseline implementation candidates are compared against."
+  metric:
+    type: string
+    description: "Name of the metric the benchmark reports (e.g. tokens_per_second, latency_ms)."
+  run_command:
+    type: string
+    description: "Shell command that runs the candidate implementation against the benchmark."
+  resource_requirements:
+    type: string
+    description: "Hardware/resource requirements to run the benchmark (e.g. GPU type, RAM). Free-form."
+  forbidden_files:
+    type: array
+    items:
+      type: string
+    description: "Files/paths the candidate implementation must not modify. Empty if none."
+  evaluation_semantics:
+    type: object
+    minProperties: 1
+    description: >
+      Exact host-attached EvaluationSemantics from ReinterpretingSpec. Optional
+      only for imported legacy BenchmarkSpec artifacts; new selections include it.

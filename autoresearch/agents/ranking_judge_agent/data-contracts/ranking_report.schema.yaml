@@ -1,0 +1,78 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/ranking_report.schema.yaml"
+title: "RankingReport"
+description: >
+  Frozen artifact produced by RankingJudgeAgent: pairwise comparisons plus a
+  Bradley-Terry-Luce (BTL) score aggregation over a set of candidates (only
+  candidate_kind="hypothesis" for now; "benchmark" is deferred), yielding a
+  ranked shortlist and a verdict on whether the candidates remain diverse or
+  have collapsed onto near-duplicates. Stored as a blob in the Research Store
+  (kind="ranking_report"); only its ref is carried in the ranking.ready event
+  payload.
+type: object
+required:
+  - candidate_kind
+  - pairwise_results
+  - btl_scores
+  - ranked_shortlist
+  - diversity_status
+additionalProperties: false
+properties:
+  candidate_kind:
+    type: string
+    enum:
+      - hypothesis
+    description: "Kind of candidate that was ranked. Only 'hypothesis' is supported for now; 'benchmark' is deferred."
+  pairwise_results:
+    type: array
+    items:
+      type: object
+      required:
+        - a
+        - b
+        - winner
+      additionalProperties: false
+      properties:
+        a:
+          type: string
+          description: "Id of the first candidate in the pairwise comparison."
+        b:
+          type: string
+          description: "Id of the second candidate in the pairwise comparison."
+        winner:
+          type: string
+          description: "Id of the winning candidate (must be a or b)."
+        rationale:
+          type: ["string", "null"]
+          description: "Optional free-form rationale for this pairwise verdict, or null if none."
+    description: "All pairwise comparisons RankingJudgeAgent performed over the candidates."
+  btl_scores:
+    type: array
+    items:
+      type: object
+      required:
+        - id
+        - score
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: "Candidate id."
+        score:
+          type: number
+          description: "Bradley-Terry-Luce aggregated score for this candidate."
+    description: "Per-candidate BTL scores aggregated from the pairwise results."
+  ranked_shortlist:
+    type: array
+    items:
+      type: string
+    description: "Candidate ids ordered best-to-worst by BTL score."
+  diversity_status:
+    type: string
+    enum:
+      - diverse
+      - collapsed
+    description: "Whether the ranked candidates remain meaningfully diverse or have collapsed onto near-duplicates."
+  rationale:
+    type: ["string", "null"]
+    description: "Optional free-form overall rationale for the ranking, or null if none."

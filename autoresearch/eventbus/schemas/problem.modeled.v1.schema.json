@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/problem.modeled.v1.schema.json",
+  "title": "problem.modeled (v1)",
+  "description": "ProblemModelingAgent's ModelingProblem mode (state machine V1.10 §1) has read the frozen ResearchSpec, LiteratureBrief, and NoveltyAuditReport and frozen a ProblemModel into the Research Store (see agents/problem_modeling_agent/data-contracts/problem_model.schema.yaml) and signals ResearchOrchestrator to transition ModelingProblem -> HumanIdeaCheckpoint. Payload is intentionally minimal: the artifact is read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "problem_model_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "problem_model_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen ProblemModel object."
+    }
+  }
+}

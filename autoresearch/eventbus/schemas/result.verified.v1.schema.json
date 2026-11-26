@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/result.verified.v1.schema.json",
+  "title": "result.verified (v1)",
+  "description": "EvaluatorAgent has finished verifying the new_best result and frozen a VerificationReport into the Research Store (see agents/evaluator_agent/data-contracts/verification_report.schema.yaml). Payload is intentionally minimal: the result is read from the Research Store by ref. EvaluatorAgent's VerifyingBestResult mode is M12 -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "verdict",
+    "verification_report_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["verified", "failed"],
+      "description": "EvaluatorAgent's verdict on whether the new_best result was verified."
+    },
+    "verification_report_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen VerificationReport object."
+    }
+  }
+}

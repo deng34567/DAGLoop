@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/novelty.audit_requested.v1.schema.json",
+  "title": "novelty.audit_requested (v1)",
+  "description": "Entry action following ReinterpretingSpec (state machine V1.10 §1): ResearchOrchestrator instructs NoveltyAuditAgent to audit the reinterpreted ResearchSpec against prior literature. Payload is intentionally minimal: the ResearchSpec, LiteratureBrief, and SpecInterpretation are read from the Research Store by ref rather than from this payload. NoveltyAuditAgent itself is out of scope for this task -- this is the frozen contract only; no consumer wired yet.",
+  "type": "object",
+  "required": [
+    "research_spec_ref",
+    "literature_brief_ref",
+    "spec_interpretation_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "moss_intervention_ref": {"type": ["string", "null"]},
+    "research_spec_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen (possibly revised) ResearchSpec object."
+    },
+    "literature_brief_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen LiteratureBrief object."
+    },
+    "spec_interpretation_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen SpecInterpretation object."
+    },
+    "evidence_audit_report_ref": {
+      "type": ["string", "null"],
+      "description": "Optional opaque ref into the Research Store resolving to the frozen EvidenceAuditReport object (EvidenceAuditAgent's Mode A co-audit at AuditingLiteratureNovelty), so NoveltyAuditAgent's verdict is evidence-informed. Null/absent when no evidence audit has run yet."
+    },
+    "method_ref": {
+      "type": ["string", "null"],
+      "description": "Frozen method whose novelty and feasibility are being audited."
+    },
+    "targeted_search_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    }
+  },
+  "dependentRequired": {
+    "targeted_search_id": ["method_ref"]
+  }
+}

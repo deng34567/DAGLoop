@@ -1,0 +1,37 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://autoresearch.example/schemas/citation_audit_report.schema.yaml"
+title: "CitationAuditReport"
+description: >
+  Frozen artifact produced by EvidenceAuditAgent: having read the
+  consolidated ResearchMemory plus the ResearchSpec, EvidenceAuditAgent
+  checks which claims lack citation support. Stored as a blob in the
+  Research Store (kind="citation_audit_report"); only its ref is carried in
+  the evidence.citation_audited event payload.
+type: object
+required:
+  - unsupported_claims
+  - checked_count
+additionalProperties: false
+properties:
+  unsupported_claims:
+    type: array
+    items:
+      type: object
+      required:
+        - claim
+        - why
+      additionalProperties: false
+      properties:
+        claim:
+          type: string
+          description: "A claim found in the ResearchMemory lacking citation support."
+        why:
+          type: string
+          description: "Why this claim is considered unsupported."
+    description: "Claims found lacking citation support. Empty if none."
+  checked_count:
+    type: integer
+    description: "Total number of claims checked during this citation audit."
+  notes:
+    type: ["string", "null"]
+    description: "Optional free-form supporting notes for the audit, or null if none."

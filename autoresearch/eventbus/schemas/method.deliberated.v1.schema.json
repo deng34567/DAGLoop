@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/method.deliberated.v1.schema.json",
+  "title": "method.deliberated (v1)",
+  "type": "object",
+  "required": ["method_ref"],
+  "additionalProperties": false,
+  "properties": {"method_ref": {"type": "string"}}
+}

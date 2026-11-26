@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autoresearch.example/schemas/hypothesis.critiqued.v1.schema.json",
+  "title": "hypothesis.critiqued (v1)",
+  "description": "CriticAgent has finished critiquing the frozen HypothesisBank against the frozen ResearchSpec and frozen a CritiqueReport into the Research Store (see agents/critic_agent/data-contracts/critique_report.schema.yaml). Payload is intentionally minimal: the report is read from the Research Store by ref.",
+  "type": "object",
+  "required": [
+    "verdict",
+    "critique_report_ref",
+    "passing_hypothesis_ids"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["some_pass", "all_rejected"],
+      "description": "CriticAgent's overall verdict on the HypothesisBank, mirroring CritiqueReport.verdict."
+    },
+    "critique_report_ref": {
+      "type": "string",
+      "description": "Opaque ref into the Research Store resolving to the frozen CritiqueReport object."
+    },
+    "passing_hypothesis_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs of hypotheses from the HypothesisBank that survived critique. Empty if verdict is all_rejected."
+    }
+  }
+}
